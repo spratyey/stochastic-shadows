@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "owl/samples/cmdline/s10-launch3D",
+		"source" : "owl/samples/cmdline/s10-launch3D"
+	}
+}

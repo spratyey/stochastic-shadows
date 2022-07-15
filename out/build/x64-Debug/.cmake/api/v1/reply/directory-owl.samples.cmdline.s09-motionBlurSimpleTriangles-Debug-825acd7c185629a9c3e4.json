@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "owl/samples/cmdline/s09-motionBlurSimpleTriangles",
+		"source" : "owl/samples/cmdline/s09-motionBlurSimpleTriangles"
+	}
+}

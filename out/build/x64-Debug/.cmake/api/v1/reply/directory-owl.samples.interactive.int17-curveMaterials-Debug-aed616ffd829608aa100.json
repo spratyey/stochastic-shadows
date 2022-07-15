@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "owl/samples/interactive/int17-curveMaterials",
+		"source" : "owl/samples/interactive/int17-curveMaterials"
+	}
+}

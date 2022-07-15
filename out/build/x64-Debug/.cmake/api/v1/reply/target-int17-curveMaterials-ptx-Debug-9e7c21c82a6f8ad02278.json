@@ -1,0 +1,128 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "owl/samples/interactive/int17-curveMaterials/CMakeFiles/int17-curveMaterials-ptx.dir/./int17-curveMaterials-ptx.c.obj"
+		}
+	],
+	"backtrace" : 2,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_library",
+			"embed_ptx",
+			"add_compile_definitions",
+			"target_sources"
+		],
+		"files" : 
+		[
+			"owl/owl/cmake/embed_ptx.cmake",
+			"owl/samples/interactive/int17-curveMaterials/CMakeLists.txt",
+			"owl/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 17,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 85,
+				"parent" : 1
+			},
+			{
+				"file" : 2
+			},
+			{
+				"command" : 2,
+				"file" : 2,
+				"line" : 82,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 86,
+				"parent" : 1
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "/DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 4,
+					"define" : "OWL_BUILDING_ALL_SAMPLES"
+				}
+			],
+			"language" : "C",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		}
+	],
+	"dependencies" : 
+	[
+		{
+			"id" : "int17-curveMaterials-ptx_ptx::@1dbcc1c5edf8cea02082"
+		}
+	],
+	"id" : "int17-curveMaterials-ptx::@1dbcc1c5edf8cea02082",
+	"name" : "int17-curveMaterials-ptx",
+	"paths" : 
+	{
+		"build" : "owl/samples/interactive/int17-curveMaterials",
+		"source" : "owl/samples/interactive/int17-curveMaterials"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		},
+		{
+			"name" : "CMake Rules",
+			"sourceIndexes" : 
+			[
+				1
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 5,
+			"compileGroupIndex" : 0,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/owl/samples/interactive/int17-curveMaterials/int17-curveMaterials-ptx.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/owl/samples/interactive/int17-curveMaterials/int17-curveMaterials-ptx.c.rule",
+			"sourceGroupIndex" : 1
+		}
+	],
+	"type" : "OBJECT_LIBRARY"
+}

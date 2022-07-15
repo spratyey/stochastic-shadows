@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "owl/samples/cmdline/s08-sierpinski",
+		"source" : "owl/samples/cmdline/s08-sierpinski"
+	}
+}

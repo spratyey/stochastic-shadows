@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "owl/samples/interactive/int10-texturedTriangles",
+		"source" : "owl/samples/interactive/int10-texturedTriangles"
+	}
+}
