@@ -17,18 +17,18 @@ embed_ptx(
   PTX_LINK_LIBRARIES
     owl::owl
   SOURCES
-    cuda/interactive.cu
+    cuda/ltc_many_lights_cuda.cu
 )
 
-add_executable(render 
+add_executable(ltc_many_lights 
 # Host code
-"interactive.cpp" "scene.cpp" "model.cpp" 
+"ltc_many_lights.cpp" "scene.cpp" "model.cpp" 
 # IMGUI files
 "imgui.cpp" "imgui_demo.cpp" "imgui_draw.cpp" "imgui_impl_glfw.cpp" "imgui_impl_opengl2.cpp" "imgui_tables.cpp" 
 "imgui_widgets.cpp"
 )
 
-target_link_libraries(render 
+target_link_libraries(ltc_many_lights 
 PRIVATE
 # Compiled PTX
 ptx_code

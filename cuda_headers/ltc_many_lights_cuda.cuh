@@ -1,28 +1,28 @@
 #pragma once
 
-#include "common.cuh"
-
-typedef owl::common::LCG<4> Random;
-
 using namespace owl;
+
+#define RADIANCE_RAY_TYPE 0
+#define SHADOW_RAY_TYPE 1
+
+#ifdef __CUDA_ARCH__
+typedef RayT<0, 2> RadianceRay;
+typedef RayT<1, 2> ShadowRay;
+#endif
 
 struct TriLight {
 	vec3f v1, v2, v3;
+	vec3f normal;
 	vec3f emissionRadiance;
+	float area;
 };
 
 struct LaunchParams {
 	TriLight* areaLights;
+	int numAreaLights;
 
 	float4* accumBuffer;
 	int accumId;
-};
-
-__constant__ LaunchParams optixLaunchParams;
-
-struct RayGenData {
-	uint32_t* frameBuffer;
-	vec2i frameBufferSize;
 
 	OptixTraversableHandle world;
 
@@ -34,8 +34,16 @@ struct RayGenData {
 	} camera;
 };
 
+__constant__ LaunchParams optixLaunchParams;
+
+struct RayGenData {
+	uint32_t* frameBuffer;
+	vec2i frameBufferSize;
+};
+
 struct TriangleMeshData {
 	vec3f* vertex;
+	vec3f* normal;
 	vec3i* index;
 	vec2f* texCoord;
 
