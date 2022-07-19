@@ -10,6 +10,7 @@ add_subdirectory(${owl_dir} EXCLUDE_FROM_ALL)
 
 include_directories("headers")
 include_directories("cuda_headers")
+include_directories("precomputation")
 
 embed_ptx(
   OUTPUT_TARGET

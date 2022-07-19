@@ -1,35 +1,65 @@
 {
-  "render_output": "C:/Users/Projects/OptixRenderer/scenes/test_scene.png",
-  "render_stats": "C:/Users/Projects/OptixRenderer/scenes/test_scene.json",
-  "width": 1920,
-  "height": 1080,
-  "spp": 2,
-  "area_lights": [
-    {
-      "vertices": [
-        [ -4.81, 4.81, 11.48 ],
-        [ 4.81, 4.81, 11.48 ],
-        [ 4.81, -4.81, 11.48 ]
-      ],
-      "radiance": [ 10, 10, 10 ]
-    },
-    {
-      "vertices": [
-        [ -4.81, 4.81, 11.48 ],
-        [ 4.81, -4.81, 11.48 ],
-        [ -4.81, -4.81, 11.48 ]
-      ],
-      "radiance": [ 10, 10, 10 ]
-    }
-  ],
-  "cameras": [
-    {
-      "from": [ -20.0031, -10.1707, 7.83879 ],
-      "to": [ 0.0, 0.0, 0.0 ],
-      "up": [ 0.0, 0.0, 1.0 ],
-      "cos_fovy": 0.66
-    }
-  ],
-  "surface_geometry": "C:/Users/Projects/OptixRenderer/scenes/obj_files/test_scene/scene.obj",
-  "area_lights": "C:/Users/Projects/OptixRenderer/scenes/obj_files/test_scene/area_lights.obj"
+    "area_lights": "C:/Users/Projects/OptixRenderer/scenes/obj_files/test_scene/area_lights.obj",
+    "cameras": [
+        {
+            "cos_fovy": 0.6600000262260437,
+            "from": [
+                -17.65778923034668,
+                -9.701047897338867,
+                12.613669395446777
+            ],
+            "to": [
+                -16.914928436279297,
+                -9.292925834655762,
+                12.083013534545898
+            ],
+            "up": [
+                0.4650883972644806,
+                0.25551581382751465,
+                0.8475874662399292
+            ]
+        },
+        {
+            "cos_fovy": 0.6600000262260437,
+            "from": [
+                -19.043943405151367,
+                13.535017013549805,
+                4.325389862060547
+            ],
+            "to": [
+                -18.242460250854492,
+                12.96538257598877,
+                4.1433515548706055
+            ],
+            "up": [
+                0.14838038384914398,
+                -0.10545773059129715,
+                0.983291506767273
+            ]
+        },
+        {
+            "cos_fovy": 0.6600000262260437,
+            "from": [
+                -5.73512601852417,
+                9.25761890411377,
+                21.1182861328125
+            ],
+            "to": [
+                -5.493757247924805,
+                8.868002891540527,
+                20.229501724243164
+            ],
+            "up": [
+                0.4680652916431427,
+                -0.7555493116378784,
+                0.45832324028015137
+            ]
+        }
+    ],
+    "height": 1080,
+    "render_output": "C:/Users/Projects/OptixRenderer/scenes/test_scene.png",
+    "render_stats": "C:/Users/Projects/OptixRenderer/scenes/test_scene.json",
+    "spp": 2,
+    "surface_geometry": "C:/Users/Projects/OptixRenderer/scenes/obj_files/test_scene/scene.obj",
+    "width": 1920
 }

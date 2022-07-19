@@ -3,7 +3,7 @@
 #include "model.h"
 #include "json.h"
 
-struct Camera {
+struct SceneCamera {
 	vec3f from;
 	vec3f at;
 	vec3f up;
@@ -11,10 +11,13 @@ struct Camera {
 };
 
 struct Scene {
+	nlohmann::json json;
+	std::string jsonFilePath;
+
 	// Scene contents
 	Model* model;
 	Model* triLights;
-	std::vector<Camera> cameras;
+	std::vector<SceneCamera> cameras;
 
 	// Other information
 	int spp;

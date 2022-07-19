@@ -1,0 +1,29 @@
+{
+    "area_lights": "C:/Users/Projects/OptixRenderer/scenes/obj_files/bistro/area_lights.obj",
+    "cameras": [
+        {
+            "cos_fovy": 0.6600000262260437,
+            "from": [
+                -31.782573699951172,
+                10.984447479248047,
+                9.866788864135742
+            ],
+            "to": [
+                -30.8409366607666,
+                10.73637580871582,
+                9.639313697814941
+            ],
+            "up": [
+                0.2199733704328537,
+                -0.057951267808675766,
+                0.973783016204834
+            ]
+        }
+    ],
+    "height": 1080,
+    "render_output": "C:/Users/Projects/OptixRenderer/scenes/test_scene.png",
+    "render_stats": "C:/Users/Projects/OptixRenderer/scenes/test_scene.json",
+    "spp": 2,
+    "surface_geometry": "C:/Users/Projects/OptixRenderer/scenes/obj_files/bistro/scene.obj",
+    "width": 1920
+}

@@ -123,7 +123,7 @@ vec3f sample_VNDF(float alphax, float alphay, vec3f V, vec2f rand_num) {
 }
 
 static __device__
-vec3f sample_GGX(float rand, float alphax, float alphay, vec3f V, float& pdf) {
+vec3f sample_GGX(vec2f rand, float alphax, float alphay, vec3f V, float& pdf) {
     vec3f N = sample_VNDF(alphax, alphay, V, rand);
     vec3f L = -V + 2.0f * N * dot(V, N);
 

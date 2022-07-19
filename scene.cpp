@@ -25,6 +25,9 @@ bool parseScene(std::string sceneFile, Scene& scene)
         return false;
     }
 
+    scene.json = sceneConfig;
+    scene.jsonFilePath = sceneFile;
+
     // Load scene properties (spp, renderOutput, renderStatsOutput, image resolution)
     scene.spp = sceneConfig["spp"];
     scene.imgWidth = sceneConfig["width"];
@@ -35,7 +38,7 @@ bool parseScene(std::string sceneFile, Scene& scene)
     // Setup camera, if none present, throw an exception
     try {
         for (auto camera : sceneConfig["cameras"]) {
-            Camera cam;
+            SceneCamera cam;
 
             cam.from = vec3f(camera["from"][0], camera["from"][1], camera["from"][2]);
             cam.at = vec3f(camera["to"][0], camera["to"][1], camera["to"][2]);

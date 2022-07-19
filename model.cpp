@@ -159,6 +159,10 @@ Model* loadOBJ(const std::string& objFile)
     if (materials.empty())
         throw std::runtime_error("could not parse materials ...");
 
+    const vec3f* vertex_array = (const vec3f*)attributes.vertices.data();
+    const vec3f* normal_array = (const vec3f*)attributes.normals.data();
+    const vec2f* texcoord_array = (const vec2f*)attributes.texcoords.data();
+
     std::cout << "Done loading obj file - found " << shapes.size() << " shapes with " << materials.size() << " materials" << std::endl;
     std::map<std::string, int>      knownTextures;
     for (int shapeID = 0; shapeID < (int)shapes.size(); shapeID++) {
@@ -179,10 +183,27 @@ Model* loadOBJ(const std::string& objFile)
                 tinyobj::index_t idx1 = shape.mesh.indices[3 * faceID + 1];
                 tinyobj::index_t idx2 = shape.mesh.indices[3 * faceID + 2];
 
-                vec3i idx(addVertex(mesh, attributes, idx0, knownVertices),
-                    addVertex(mesh, attributes, idx1, knownVertices),
-                    addVertex(mesh, attributes, idx2, knownVertices));
-                mesh->index.push_back(idx);
+                // vec3i idx(addVertex(mesh, attributes, idx0, knownVertices),
+                //     addVertex(mesh, attributes, idx1, knownVertices),
+                //     addVertex(mesh, attributes, idx2, knownVertices));
+
+                vec3i vidx(mesh->vertex.size(), mesh->vertex.size() + 1, mesh->vertex.size() + 2);
+                mesh->vertex.push_back(vertex_array[idx0.vertex_index]);
+                mesh->vertex.push_back(vertex_array[idx1.vertex_index]);
+                mesh->vertex.push_back(vertex_array[idx2.vertex_index]);
+                mesh->index.push_back(vidx);
+
+                vec3i nidx(mesh->normal.size(), mesh->normal.size() + 1, mesh->normal.size() + 2);
+                mesh->normal.push_back(normal_array[idx0.normal_index]);
+                mesh->normal.push_back(normal_array[idx1.normal_index]);
+                mesh->normal.push_back(normal_array[idx2.normal_index]);
+                // mesh->index.push_back(nidx);
+
+                vec3i tidx(mesh->texcoord.size(), mesh->texcoord.size() + 1, mesh->texcoord.size() + 2);
+                mesh->texcoord.push_back(texcoord_array[idx0.texcoord_index]);
+                mesh->texcoord.push_back(texcoord_array[idx1.texcoord_index]);
+                mesh->texcoord.push_back(texcoord_array[idx2.texcoord_index]);
+                // mesh->index.push_back(tidx);
 
                 mesh->diffuse = (const vec3f&)materials[materialID].diffuse;
                 mesh->diffuseTextureID = loadTexture(model,
@@ -199,10 +220,21 @@ Model* loadOBJ(const std::string& objFile)
                 mesh->emit = (const vec3f&)materials[materialID].diffuse;
             }
 
-            if (mesh->vertex.empty())
+            if (mesh->vertex.empty()) {
                 delete mesh;
-            else
+            }
+            else {
+                for (auto idx : mesh->index) {
+                    if (idx.x < 0 || idx.x >= (int)mesh->vertex.size() ||
+                        idx.y < 0 || idx.y >= (int)mesh->vertex.size() ||
+                        idx.z < 0 || idx.z >= (int)mesh->vertex.size()) {
+                        LOG("invalid triangle indices");
+                        throw std::runtime_error("invalid triangle indices");
+                    }
+                }
+
                 model->meshes.push_back(mesh);
+            }
         }
     }
 

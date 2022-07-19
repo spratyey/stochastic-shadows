@@ -8,6 +8,8 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl2.h"
 
+#include "ltc_isotropic.h"
+
 void drawUI();
 
 using namespace owl;
@@ -17,7 +19,7 @@ extern "C" char ltc_many_lights_cuda_ptx[];
 
 struct RenderWindow : public owl::viewer::OWLViewer
 {
-    RenderWindow(Scene& scene, vec2i resolution);
+    RenderWindow(Scene& scene, vec2i resolution, bool interactive);
 
     void initialize(Scene& scene);
 
@@ -33,7 +35,10 @@ struct RenderWindow : public owl::viewer::OWLViewer
     // /*! this function gets called whenever any camera manipulator
     //   updates the camera. gets called AFTER all values have been updated */
     void cameraChanged() override;
-     
+
+    void customKey(char key, const vec2i& pos) override;
+    
+    RendererType rendererType;
     bool sbtDirty = true;
 
     OWLBuffer accumBuffer{ 0 };
@@ -47,12 +52,61 @@ struct RenderWindow : public owl::viewer::OWLViewer
     OWLContext context{ 0 };
     OWLModule module{ 0 };
 
-    OWLParams launchParams; 
+    OWLParams launchParams;
+
+    Scene currentScene;
+    std::vector<SceneCamera> recordedCameras;
+
+    std::vector<TriLight> triLightList;
 };
 
-RenderWindow::RenderWindow(Scene& scene, vec2i resolution) 
-    : owl::viewer::OWLViewer("LTC Many Lights", resolution, true, true)
+void RenderWindow::customKey(char key, const vec2i& pos)
 {
+    if (key == '1' || key == '!') {
+        this->camera.setOrientation(this->camera.getFrom(), vec3f(0.f), vec3f(0.f, 0.f, 1.f), this->camera.getFovyInDegrees());
+        this->cameraChanged();
+    }
+    else if (key == 'R' || key == 'r') {
+        SceneCamera cam;
+        cam.from = this->camera.getFrom();
+        cam.at = this->camera.getAt();
+        cam.up = this->camera.getUp();
+        cam.cosFovy = this->camera.getCosFovy();
+        
+        this->recordedCameras.push_back(cam);
+    }
+    else if (key == 'F' || key == 'f') {
+        nlohmann::json camerasJson;
+
+        for (auto cam : this->recordedCameras) {
+            nlohmann::json oneCameraJson;
+            std::vector<float> from, at, up;
+
+            for (int i = 0; i < 3; i++) {
+                from.push_back(cam.from[i]);
+                at.push_back(cam.at[i]);
+                up.push_back(cam.up[i]);
+            }
+
+            oneCameraJson["from"] = from;
+            oneCameraJson["to"] = at;
+            oneCameraJson["up"] = up;
+            oneCameraJson["cos_fovy"] = cam.cosFovy;
+
+            camerasJson.push_back(oneCameraJson);
+        }
+
+        this->currentScene.json["cameras"] = camerasJson;
+        std::ofstream outputFile(this->currentScene.jsonFilePath);
+        outputFile << std::setw(4) << this->currentScene.json << std::endl;
+    }
+}
+
+RenderWindow::RenderWindow(Scene& scene, vec2i resolution, bool interactive) 
+    : owl::viewer::OWLViewer("LTC Many Lights", resolution, interactive, false)
+{
+    this->rendererType = DIRECT_LIGHT;
+    this->currentScene = scene;
     this->initialize(scene);
 }
 
@@ -81,7 +135,6 @@ void RenderWindow::initialize(Scene& scene)
     // Area lights setup (Assume triangular area lights)
     // ====================================================
     Model* triLights = scene.triLights;
-    std::vector<TriLight> triLightList;
 
     for (auto light : triLights->meshes) {
         // Loop over index list (to setup individual triangles)
@@ -93,7 +146,7 @@ void RenderWindow::initialize(Scene& scene)
             lightData.v1 = light->vertex[index.x];
             lightData.v2 = light->vertex[index.y];
             lightData.v3 = light->vertex[index.z];
-            lightData.normal = normalize(cross(lightData.v1 - lightData.v2, lightData.v3 - lightData.v2));
+            lightData.normal = normalize(light->normal[index.x]+light->normal[index.y]+light->normal[index.z]);
             lightData.area = 0.5f * length(cross(lightData.v1 - lightData.v2, lightData.v3 - lightData.v2));
 
             lightData.emissionRadiance = light->emit;
@@ -110,7 +163,11 @@ void RenderWindow::initialize(Scene& scene)
         {"numAreaLights", OWL_INT, OWL_OFFSETOF(LaunchParams, numAreaLights)},
         {"accumBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, accumBuffer)},
         {"accumId", OWL_INT, OWL_OFFSETOF(LaunchParams, accumId)},
+        {"rendererType", OWL_INT, OWL_OFFSETOF(LaunchParams, rendererType)},
         {"world", OWL_GROUP, OWL_OFFSETOF(LaunchParams, world)},
+        {"ltc_1", OWL_TEXTURE, OWL_OFFSETOF(LaunchParams, ltc_1)},
+        {"ltc_2", OWL_TEXTURE, OWL_OFFSETOF(LaunchParams, ltc_2)},
+        {"ltc_3", OWL_TEXTURE, OWL_OFFSETOF(LaunchParams, ltc_3)},
         {"camera.pos", OWL_FLOAT3, OWL_OFFSETOF(LaunchParams, camera.pos)},
         {"camera.dir_00", OWL_FLOAT3, OWL_OFFSETOF(LaunchParams, camera.dir_00)},
         {"camera.dir_du", OWL_FLOAT3, OWL_OFFSETOF(LaunchParams, camera.dir_du)},
@@ -119,6 +176,20 @@ void RenderWindow::initialize(Scene& scene)
     };
 
     this->launchParams = owlParamsCreate(context, sizeof(LaunchParams), launchParamsDecl, -1);
+
+    // Set LTC matrices (8x8, since only isotropic)
+    OWLTexture ltc1 = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA32F, 8, 8, ltc_ggx_1,
+                                            OWL_TEXTURE_LINEAR, OWL_TEXTURE_CLAMP);
+    OWLTexture ltc2 = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA32F, 8, 8, ltc_ggx_2,
+                                            OWL_TEXTURE_LINEAR, OWL_TEXTURE_CLAMP);
+    OWLTexture ltc3 = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA32F, 8, 8, ltc_ggx_3,
+                                            OWL_TEXTURE_LINEAR, OWL_TEXTURE_CLAMP);
+
+    owlParamsSetTexture(this->launchParams, "ltc_1", ltc1);
+    owlParamsSetTexture(this->launchParams, "ltc_2", ltc2);
+    owlParamsSetTexture(this->launchParams, "ltc_3", ltc3);
+
+    owlParamsSet1i(this->launchParams, "rendererType", (int)this->rendererType);
 
     OWLBuffer triLightsBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(TriLight), triLightList.size(), triLightList.data());
     owlParamsSetBuffer(this->launchParams, "areaLights", triLightsBuffer);
@@ -302,12 +373,17 @@ void RenderWindow::render()
         sbtDirty = false;
     }
 
-    owlParamsSet1i(this->launchParams, "accumId", this->accumId);
+    if (this->rendererType == LTC_BASELINE && accumId >= 1) {
+        drawUI();
+    }
+    else {
+        owlParamsSet1i(this->launchParams, "accumId", this->accumId);
 
-    owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
-    drawUI();
+        owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
+        accumId++;
 
-    accumId++;
+        drawUI();
+    }
 }
 
 void RenderWindow::resize(const vec2i& newSize)
@@ -367,6 +443,14 @@ void RenderWindow::drawUI()
         ImGui::Begin("Controls", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
+        int currentType = this->rendererType;
+        ImGui::Combo("Renderer", &currentType, rendererNames, NUM_RENDERER_TYPES, 0);
+        if (currentType != this->rendererType) {
+            this->rendererType = static_cast<RendererType>(currentType);
+            owlParamsSet1i(this->launchParams, "rendererType", currentType);
+            this->cameraChanged();
+        }
+
         ImGui::End();
     }
 
@@ -376,13 +460,21 @@ void RenderWindow::drawUI()
 
 int main(int argc, char** argv)
 {
+    std::string savePath;
+    bool isInteractive = true;
+
     std::string currentScene;
-    std::string defaultScene = "C:/Users/Projects/OptixRenderer/scenes/scene_configs/test_scene.json";
+    std::string defaultScene = "C:/Users/Projects/OptixRenderer/scenes/scene_configs/bistro.json";
 
     if (argc == 1)
         currentScene = defaultScene;
     else
         currentScene = std::string(argv[1]);
+
+    if (argc >= 2) {
+        isInteractive = atoi(argv[2]);
+        savePath = std::string(argv[3]);
+    }
     
     LOG("Loading scene " + currentScene);
 
@@ -391,23 +483,64 @@ int main(int argc, char** argv)
     if (!success) {
         LOG("Error loading scene");
         return -1;
-    }
+    } 
 
     vec2i resolution(scene.imgWidth, scene.imgHeight);
-    RenderWindow win(scene, resolution);
+    RenderWindow win(scene, resolution, isInteractive);
 
-    win.camera.setOrientation(scene.cameras[0].from,
-        scene.cameras[0].at,
-        scene.cameras[0].up,
-        owl::viewer::toDegrees(acosf(scene.cameras[0].cosFovy)));
-    win.enableFlyMode();
-    win.enableInspectMode(owl::box3f(vec3f(-1000.f), vec3f(+1000.f)));
-    win.setWorldScale(length(scene.model->bounds.span()));
+    if (isInteractive) {
+        win.camera.setOrientation(scene.cameras[0].from,
+            scene.cameras[0].at,
+            scene.cameras[0].up,
+            owl::viewer::toDegrees(acosf(scene.cameras[0].cosFovy)));
+        win.enableFlyMode();
+        win.enableInspectMode(owl::box3f(scene.model->bounds.lower, scene.model->bounds.upper));
+        win.setWorldScale(length(scene.model->bounds.span()));
 
-    // ##################################################################
-    // now that everything is ready: launch it ....
-    // ##################################################################
-    win.showAndRun();
+        // ##################################################################
+        // now that everything is ready: launch it ....
+        // ##################################################################
+        win.showAndRun();
+    }
+    else {
+
+        nlohmann::json stats;
+
+        int imgName = 0;
+        for (auto cam : scene.cameras) {
+            win.camera.setOrientation(cam.from, cam.at, cam.up, owl::viewer::toDegrees(acosf(cam.cosFovy)));
+            win.resize(resolution);
+
+            auto start = std::chrono::high_resolution_clock::now();
+
+            win.accumId = 0;
+            for (int sample = 0; sample < scene.spp; sample++) {
+                win.render();
+            }
+
+            auto finish = std::chrono::high_resolution_clock::now();
+
+            auto milliseconds_taken = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() / 1e6;
+
+            std::string imgFileName = savePath + "/" + std::to_string(imgName) + ".png";
+            nlohmann::json currentStats = {
+                {"image_name", imgFileName},
+                {"spp", scene.spp},
+                {"width", scene.imgWidth},
+                {"height", scene.imgHeight},
+                {"frametime_milliseconds", milliseconds_taken},
+                {"num_area_lights", win.triLightList.size()}
+            };
+
+            stats.push_back(currentStats);
+
+            win.screenShot(imgFileName);
+            imgName++;
+        }
+
+        std::ofstream op(savePath + "/stats.json");
+        op << std::setw(4) << stats << std::endl;
+    }
 
     return 0;
 }

@@ -2,6 +2,17 @@
 
 using namespace owl;
 
+enum RendererType {
+	DIFFUSE=0,
+	ALPHA=1,
+	NORMALS=2,
+	DIRECT_LIGHT=3,
+	LTC_BASELINE=4,
+	NUM_RENDERER_TYPES
+};
+
+const char* rendererNames[NUM_RENDERER_TYPES] = {"Diffuse", "Alpha", "Normals", "Direct Light", "LTC Baseline"};
+
 #define RADIANCE_RAY_TYPE 0
 #define SHADOW_RAY_TYPE 1
 
@@ -24,7 +35,11 @@ struct LaunchParams {
 	float4* accumBuffer;
 	int accumId;
 
+	int rendererType;
+
 	OptixTraversableHandle world;
+
+	cudaTextureObject_t ltc_1, ltc_2, ltc_3;
 
 	struct {
 		vec3f pos;
@@ -61,4 +76,11 @@ struct TriangleMeshData {
 
 struct MissProgData {
 	vec3f const_color;
+};
+
+struct ShadowRayData {
+	vec3f visibility;
+	vec3f point, normal;
+	vec3f emit;
+	float area;
 };
