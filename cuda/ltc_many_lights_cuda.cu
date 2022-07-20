@@ -8,8 +8,11 @@
 #include "ltc_utils.cuh"
 #include "polygon_utils.cuh"
 
-static __device__ vec3f estimateDirectLighting(SurfaceInteraction& si);
-static __device__ vec3f ltcDirecLighingBaseline(SurfaceInteraction& si);
+inline __device__ vec3f estimateDirectLighting(SurfaceInteraction& si);
+inline __device__ vec3f estimateDirectLightingLBVH(SurfaceInteraction& si);
+inline __device__ vec3f ltcDirecLighingBaseline(SurfaceInteraction& si);
+
+inline __device__ vec3f multipleImportanceSampling(SurfaceInteraction& si, int selectedAreaLight, float lightSelectionPdf, vec2f rand1, vec2f rand2);
 
 OPTIX_RAYGEN_PROGRAM(rayGen)()
 {
@@ -98,6 +101,12 @@ OPTIX_CLOSEST_HIT_PROGRAM(triangleMeshCH)()
         else
             color = estimateDirectLighting(si);
     }
+    else if (optixLaunchParams.rendererType == DIRECT_LIGHT_LBVH) {
+        if (self.isLight)
+            color = self.emit;
+        else
+            color = estimateDirectLightingLBVH(si);
+    }
     else if (optixLaunchParams.rendererType == LTC_BASELINE) {
         if (self.isLight)
             color = self.emit;
@@ -116,7 +125,7 @@ OPTIX_MISS_PROGRAM(miss)()
     prd = self.const_color;
 }
 
-static __device__
+inline __device__
 vec3f ltcDirecLighingBaseline(SurfaceInteraction& si)
 {
     const vec2i pixelId = owl::getLaunchIndex();
@@ -134,17 +143,20 @@ vec3f ltcDirecLighingBaseline(SurfaceInteraction& si)
     vec3f ltc_mat[3], ltc_mat_inv[3];
     float alpha = si.alpha;
     float theta = sphericalTheta(wo_local);
-    fetchLtcMat(alpha, theta, ltc_mat);
+
+    float amplitude = 1.f;
+    fetchLtcMat(alpha, theta, ltc_mat, amplitude);
     matrixInverse(ltc_mat, ltc_mat_inv);
 
     vec3f iso_frame[3];
-    vec3f T1, T2;
-    T1 = owl::normalize(wo_local - normal_local * owl::dot(wo_local, normal_local));
-    T2 = owl::normalize(owl::cross(normal_local, T1));
 
-    iso_frame[0] = T1;
-    iso_frame[1] = T2;
+    iso_frame[0] = wo_local;
+    iso_frame[0].z = 0.f;
+    iso_frame[0] = normalize(iso_frame[0]);
+
     iso_frame[2] = normal_local;
+
+    iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
 
     for (int lidx = 0; lidx < optixLaunchParams.numAreaLights; lidx++) {
         vec3f lv1 = optixLaunchParams.areaLights[lidx].v1;
@@ -222,24 +234,94 @@ vec3f ltcDirecLighingBaseline(SurfaceInteraction& si)
             ggx_shading = owl::abs(ggx_shading);
         }
 
-        color += si.diffuse / PI * lemit * diffuse_shading + 0.3f * lemit * ggx_shading;
+        color += (si.diffuse * lemit * diffuse_shading) + (amplitude * lemit * ggx_shading);
     }
 
     return color;
 }
 
-static __device__
-vec3f estimateDirectLighting(SurfaceInteraction& si)
+inline __device__
+vec3f estimateDirectLightingLBVH(SurfaceInteraction& si)
 {
     const vec2i pixelId = owl::getLaunchIndex();
     owl::common::LCG<4> rng(pixelId.x * pixelId.y, optixLaunchParams.accumId);
 
-    vec3f color(0.f, 0.f, 0.f);
-    vec3f wo_local = normalize( apply_mat(si.to_local, si.wo) );
-    vec3f normal_local(0.f, 0.f, 1.f);
+    int nodeIdx = 0;
+    float lightSelectionPdf = 1.f;
+    int selectedAreaLight = 0;
+    for (int i = 0; i < optixLaunchParams.areaLightsBVHHeight + 1; i++) {
+        LightBVH node = optixLaunchParams.areaLightsBVH[nodeIdx];
+        
+        // If leaf
+        if (node.left == 0 && node.right == 0) {
+            selectedAreaLight = node.primIdx + round(rng() * node.primCount);
+            lightSelectionPdf *= 1.f / node.primCount;
+
+            break;
+        }
+
+        LightBVH leftNode = optixLaunchParams.areaLightsBVH[node.left];
+        LightBVH rightNode = optixLaunchParams.areaLightsBVH[node.right];
+
+        float leftImp = 1.f / pow(owl::length(leftNode.aabbMid - si.p), 2.f);
+        float rightImp = 1.f / pow(owl::length(rightNode.aabbMid - si.p), 2.f);
+        float sum = leftImp + rightImp;
+
+        leftImp = leftImp / sum;
+        rightImp = rightImp / sum;
+
+        float eps = rng();
+        if (eps < leftImp) {
+            nodeIdx = node.left;
+            lightSelectionPdf *= leftImp;
+        }
+        else {
+            nodeIdx = node.right;
+            lightSelectionPdf *= rightImp;
+        }
+    }
+
+    vec2f rand1 = vec2f(rng(), rng());
+    vec2f rand2 = vec2f(rng(), rng());
+
+    vec3f color = multipleImportanceSampling(si, selectedAreaLight, lightSelectionPdf, rand1, rand2);
+
+    color.x = owl::max(0.f, color.x);
+    color.y = owl::max(0.f, color.y);
+    color.z = owl::max(0.f, color.z);
+
+    return color;
+}
+
+inline __device__
+vec3f estimateDirectLighting(SurfaceInteraction& si)
+{
+    const vec2i pixelId = owl::getLaunchIndex();
+    owl::common::LCG<16> rng(pixelId.x * pixelId.y, optixLaunchParams.accumId);
 
     int selectedAreaLight = round(rng() * optixLaunchParams.numAreaLights);
+    float lightSelectionPdf = 1.f / optixLaunchParams.numAreaLights;
+
+    vec2f rand1 = vec2f(rng(), rng());
+    vec2f rand2 = vec2f(rng(), rng());
+
+    vec3f color = multipleImportanceSampling(si, selectedAreaLight, lightSelectionPdf, rand1, rand2);
+
+    color.x = owl::max(0.f, color.x);
+    color.y = owl::max(0.f, color.y);
+    color.z = owl::max(0.f, color.z);
+
+    return color;
+}
+
+inline __device__
+vec3f multipleImportanceSampling(SurfaceInteraction& si, int selectedAreaLight, float lightSelectionPdf, vec2f rand1, vec2f rand2)
+{
     TriLight areaLight = optixLaunchParams.areaLights[selectedAreaLight];
+
+    vec3f color(0.f, 0.f, 0.f);
+    vec3f wo_local = normalize(apply_mat(si.to_local, si.wo));
+    vec3f normal_local(0.f, 0.f, 1.f);
 
     {
         float light_pdf, brdf_pdf;
@@ -251,9 +333,9 @@ vec3f estimateDirectLighting(SurfaceInteraction& si)
         vec3f lemit = areaLight.emissionRadiance;
         float larea = areaLight.area;
 
-        vec3f lpoint = samplePointOnTriangle(lv1, lv2, lv3, rng(), rng());
+        vec3f lpoint = samplePointOnTriangle(lv1, lv2, lv3, rand1.x, rand1.y);
         vec3f wi = normalize(lpoint - si.p);
-        vec3f wi_local = normalize( apply_mat(si.to_local, wi) );
+        vec3f wi_local = normalize(apply_mat(si.to_local, wi));
 
         if (owl::dot(-wi, lnormal) < 0.f)
             return color;
@@ -261,7 +343,7 @@ vec3f estimateDirectLighting(SurfaceInteraction& si)
         float xmy = pow(owl::length(lpoint - si.p), 2.f);
         float lDotWi = owl::abs(owl::dot(lnormal, -wi));
 
-        light_pdf = (1.f / optixLaunchParams.numAreaLights) * (xmy / (larea * lDotWi));
+        light_pdf = lightSelectionPdf * (xmy / (larea * lDotWi));
 
         if (light_pdf <= 0.f)
             return color;
@@ -285,7 +367,7 @@ vec3f estimateDirectLighting(SurfaceInteraction& si)
     {
         float light_pdf, brdf_pdf;
 
-        vec3f wi_local = sample_GGX(vec2f(rng(), rng()), si.alpha, si.alpha, wo_local, brdf_pdf);
+        vec3f wi_local = sample_GGX(rand2, si.alpha, si.alpha, wo_local, brdf_pdf);
         vec3f wi = normalize(apply_mat(si.to_world, wi_local));
 
         if (brdf_pdf <= 0.f)
@@ -301,7 +383,7 @@ vec3f estimateDirectLighting(SurfaceInteraction& si)
         if (wi_local.z > 0.f && wo_local.z > 0.f && srd.visibility != vec3f(0.f)) {
             float xmy = pow(owl::length(srd.point - si.p), 2.f);
             float lDotWi = owl::abs(owl::dot(srd.normal, -wi));
-            light_pdf = (1.f / optixLaunchParams.numAreaLights) * (xmy / (srd.area * lDotWi));
+            light_pdf = lightSelectionPdf * (xmy / (srd.area * lDotWi));
 
             if (light_pdf <= 0.f)
                 return color;
@@ -311,7 +393,7 @@ vec3f estimateDirectLighting(SurfaceInteraction& si)
 
             color += brdf * srd.emit * owl::abs(wi_local.z) * weight / brdf_pdf;
         }
-        
+
     }
 
     return color;

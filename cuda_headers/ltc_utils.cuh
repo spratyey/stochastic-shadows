@@ -1,7 +1,7 @@
-static __device__
-void fetchLtcMat(float alpha, float theta, vec3f ltc_mat[3])
+inline __device__
+void fetchLtcMat(float alpha, float theta, vec3f ltc_mat[3], float &amplitude)
 {
-    theta = theta / (0.5 * PI);
+    theta = theta * 0.99f / (0.5 * PI);
 
     float4 r1 = tex2D<float4>(optixLaunchParams.ltc_1, theta, alpha);
     float4 r2 = tex2D<float4>(optixLaunchParams.ltc_2, theta, alpha);
@@ -10,9 +10,11 @@ void fetchLtcMat(float alpha, float theta, vec3f ltc_mat[3])
     ltc_mat[0] = vec3f(r1.x, r1.y, r1.z);
     ltc_mat[1] = vec3f(r2.x, r2.y, r2.z);
     ltc_mat[2] = vec3f(r3.x, r3.y, r3.z);
+
+    amplitude = r3.w;
 }
 
-static __device__
+inline __device__
 vec3f integrateEdgeVec(vec3f v1, vec3f v2)
 {
     float x = dot(v1, v2);
@@ -27,7 +29,7 @@ vec3f integrateEdgeVec(vec3f v1, vec3f v2)
     return cross(v1, v2) * theta_sintheta;
 }
 
-static __device__
+inline __device__
 float integrateEdge(vec3f v1, vec3f v2)
 {
     return integrateEdgeVec(v1, v2).z;

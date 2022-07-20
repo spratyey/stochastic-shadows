@@ -17,6 +17,7 @@ struct Scene {
 	// Scene contents
 	Model* model;
 	Model* triLights;
+	std::vector<int> renderers;
 	std::vector<SceneCamera> cameras;
 
 	// Other information

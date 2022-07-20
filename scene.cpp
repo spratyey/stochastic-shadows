@@ -35,6 +35,17 @@ bool parseScene(std::string sceneFile, Scene& scene)
     scene.renderOutput = sceneConfig["render_output"];
     scene.renderStatsOutput = sceneConfig["render_stats"];
 
+    // Setup different types of renderers
+    try {
+        for (auto renderer : sceneConfig["renderers"]) {
+            scene.renderers.push_back(renderer);
+        }
+    }
+    catch (nlohmann::json::exception e) {
+        LOG("No renderers defined.");
+        return false;
+    }
+
     // Setup camera, if none present, throw an exception
     try {
         for (auto camera : sceneConfig["cameras"]) {

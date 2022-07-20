@@ -1,5 +1,5 @@
 
-static __device__
+inline __device__
 vec3f barycentricInterpolate(vec3f* tex, vec3i index)
 {
     float u = optixGetTriangleBarycentrics().x;
@@ -10,7 +10,7 @@ vec3f barycentricInterpolate(vec3f* tex, vec3i index)
         + v * tex[index.z];
 }
 
-static __device__
+inline __device__
 vec2f barycentricInterpolate(vec2f* tex, vec3i index)
 {
     float u = optixGetTriangleBarycentrics().x;
@@ -21,7 +21,7 @@ vec2f barycentricInterpolate(vec2f* tex, vec3i index)
         + v * tex[index.z];
 }
 
-static __device__
+inline __device__
 vec3f uniformSampleHemisphere(vec2f rand)
 {
     float z = rand.x;
@@ -31,14 +31,14 @@ vec3f uniformSampleHemisphere(vec2f rand)
     return normalize(vec3f(r * cos(phi), r * sin(phi), z));
 }
 
-static __device__
+inline __device__
 vec3f apply_mat(vec3f mat[3], vec3f v)
 {
     vec3f result(dot(mat[0], v), dot(mat[1], v), dot(mat[2], v));
     return result;
 }
 
-static __device__
+inline __device__
 void matrixInverse(vec3f m[3], vec3f minv[3]) {
     int indxc[3], indxr[3];
     int ipiv[3] = { 0, 0, 0 };
@@ -102,7 +102,7 @@ void matrixInverse(vec3f m[3], vec3f minv[3]) {
     }
 }
 
-static __device__
+inline __device__
 void orthonormalBasis(vec3f n, vec3f mat[3], vec3f invmat[3])
 {
     vec3f c1, c2, c3;
@@ -127,7 +127,7 @@ void orthonormalBasis(vec3f n, vec3f mat[3], vec3f invmat[3])
     matrixInverse(mat, invmat);
 }
 
-static __device__
+inline __device__
 vec3f samplePointOnTriangle(vec3f v1, vec3f v2, vec3f v3,
     float u1, float u2)
 {
@@ -135,12 +135,12 @@ vec3f samplePointOnTriangle(vec3f v1, vec3f v2, vec3f v3,
     return (1 - su1) * v1 + su1 * ((1 - u2) * v2 + u2 * v3);
 }
 
-static __device__
+inline __device__
 float sphericalTheta(vec3f p) {
     return acos(p.z);
 }
 
-static __device__
+inline __device__
 float balanceHeuristic(int nf, float fPdf, int ng, float gPdf) {
     return (nf * fPdf) / (nf * fPdf + ng * gPdf);
 }

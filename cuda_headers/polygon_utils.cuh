@@ -1,7 +1,7 @@
 
 /*! Returns the intersection of the line connecting the given two points with
 	the plane z == 0.0f.*/
-static __device__
+inline __device__
 vec3f iz0(vec3f lhs, vec3f rhs)
 {
 	float lerp_factor = lhs.z / (lhs.z - rhs.z);
@@ -27,7 +27,7 @@ vec3f iz0(vec3f lhs, vec3f rhs)
 	the first entry of v is repeated at the returned vertex count for the
 	output. vertex_count must be at least
 	MIN_POLYGON_VERTEX_COUNT_BEFORE_CLIPPING.*/
-static __device__
+inline __device__
 int clipPolygon(int vertex_count, vec3f v[5])
 {
 	if (vertex_count == 0)
