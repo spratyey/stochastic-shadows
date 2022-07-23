@@ -41,16 +41,6 @@ typedef RayT<0, 2> RadianceRay;
 typedef RayT<1, 2> ShadowRay;
 #endif
 
-struct TriLight {
-	vec3f v1, v2, v3;
-	vec3f cg;
-	vec3f normal;
-	vec3f emissionRadiance;
-
-	float flux;
-	float area;
-};
-
 struct LightBVH {
 	vec3f aabbMin = vec3f(0.f);
 	vec3f aabbMax = vec3f(0.f);
@@ -61,21 +51,49 @@ struct LightBVH {
 	uint32_t primIdx = 0, primCount = 0;
 };
 
+struct TriLight {
+	vec3f aabbMin = vec3f(1e30f);
+	vec3f aabbMax = vec3f(-1e30f);
+
+	vec3f v1, v2, v3;
+	vec3f cg;
+	vec3f normal;
+	vec3f emit;
+
+	float flux;
+	float area;
+};
+
+struct MeshLight {
+	vec3f aabbMin = vec3f(1e30f);
+	vec3f aabbMax = vec3f(-1e30f);
+	vec3f cg;
+	float flux;
+
+	int triIdx;
+	int triCount;
+
+	int bvhIdx;
+	int bvhHeight;
+};
+
 struct LaunchParams {
-	TriLight* areaLights;
-	int numAreaLights;
-
-	LightBVH* areaLightsBVH;
-	int areaLightsBVHHeight;
-
 	float4* accumBuffer;
 	int accumId;
 
 	int rendererType;
-
 	OptixTraversableHandle world;
-
 	cudaTextureObject_t ltc_1, ltc_2, ltc_3;
+
+	TriLight* triLights;
+	int numTriLights;
+
+	MeshLight* meshLights;
+	int numMeshLights;
+
+	LightBVH* lightBlas;
+	LightBVH* lightTlas;
+	int lightTlasHeight;
 
 	struct {
 		vec3f pos;

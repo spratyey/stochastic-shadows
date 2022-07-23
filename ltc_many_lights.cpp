@@ -42,8 +42,12 @@ struct RenderWindow : public owl::viewer::OWLViewer
 
     int getLightBVHHeight(uint32_t nodeIdx, std::vector<LightBVH>& bvh);
     float evaluateSAHForLightBVH(LightBVH& node, std::vector<TriLight>& primitives, int axis, float pos);
-    void updateLightBVHNodeBounds(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<TriLight>& primitives);
-    void subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<TriLight>& primitives);
+
+    template <typename T> 
+    void updateLightBVHNodeBounds(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<T>& primitives);
+
+    template <typename T>
+    void subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<T>& primitives);
     
     RendererType rendererType;
     bool sbtDirty = true;
@@ -65,7 +69,11 @@ struct RenderWindow : public owl::viewer::OWLViewer
     std::vector<SceneCamera> recordedCameras;
 
     std::vector<TriLight> triLightList;
-    std::vector<LightBVH> lightBvh;
+    std::vector<MeshLight> meshLightList;
+
+    std::vector<LightBVH> lightBlas;
+    std::vector<LightBVH> lightTlas;
+    int lightTlasHeight = 0;
 };
 
 RenderWindow::RenderWindow(Scene& scene, vec2i resolution, bool interactive) 
@@ -120,28 +128,25 @@ int RenderWindow::getLightBVHHeight(uint32_t nodeIdx, std::vector<LightBVH>& bvh
     return max(leftHeight, rightHeight) + 1;
 }
 
-void RenderWindow::updateLightBVHNodeBounds(uint32_t nodeIdx, std::vector<LightBVH> &bvh, std::vector<TriLight> &primitives)
+template <typename T>
+void RenderWindow::updateLightBVHNodeBounds(uint32_t nodeIdx, std::vector<LightBVH> &bvh, std::vector<T> &primitives)
 {
     LightBVH& node = bvh[nodeIdx];
     node.aabbMax = vec3f(-1e30f);
     node.aabbMin = vec3f(1e30f);
 
     for (uint32_t i = node.primIdx; i < node.primCount; i++) {
-        TriLight& light = primitives[i];
+        T& prim = primitives[i];
 
-        node.aabbMin = owl::min(node.aabbMin, light.v1);
-        node.aabbMin = owl::min(node.aabbMin, light.v2);
-        node.aabbMin = owl::min(node.aabbMin, light.v3);
-
-        node.aabbMax = owl::max(node.aabbMax, light.v1);
-        node.aabbMax = owl::max(node.aabbMax, light.v2);
-        node.aabbMax = owl::max(node.aabbMax, light.v3);
+        node.aabbMin = owl::min(node.aabbMin, prim.aabbMin);
+        node.aabbMax = owl::max(node.aabbMax, prim.aabbMax);
     }
 
     node.aabbMid = (node.aabbMin + node.aabbMax) * 0.5f;
 }
 
-void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<TriLight>& primitives)
+template <typename T>
+void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<T>& primitives)
 {
     if (bvh[nodeIdx].primCount <= 2) {
         bvh[nodeIdx].flux = 0.f;
@@ -193,8 +198,8 @@ void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bv
             i++;
         }
         else {
-            TriLight iItem = primitives[i];
-            TriLight jItem = primitives[j];
+            T iItem = primitives[i];
+            T jItem = primitives[j];
 
             primitives[i] = jItem;
             primitives[j] = iItem;
@@ -229,11 +234,11 @@ void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bv
 
     bvh[nodeIdx].primCount = 0;
 
-    this->updateLightBVHNodeBounds(bvh[nodeIdx].left, bvh, primitives);
-    this->updateLightBVHNodeBounds(bvh[nodeIdx].right, bvh, primitives);
+    this->updateLightBVHNodeBounds<T>(bvh[nodeIdx].left, bvh, primitives);
+    this->updateLightBVHNodeBounds<T>(bvh[nodeIdx].right, bvh, primitives);
 
-    this->subdivideLightBVH(bvh[nodeIdx].left, bvh, primitives);
-    this->subdivideLightBVH(bvh[nodeIdx].right, bvh, primitives);
+    this->subdivideLightBVH<T>(bvh[nodeIdx].left, bvh, primitives);
+    this->subdivideLightBVH<T>(bvh[nodeIdx].right, bvh, primitives);
 
     bvh[nodeIdx].flux = (bvh[bvh[nodeIdx].left].flux + bvh[bvh[nodeIdx].right].flux) / 2.0;
 }
@@ -262,58 +267,101 @@ void RenderWindow::initialize(Scene& scene)
     // ====================================================
     // Area lights setup (Assume triangular area lights)
     // ====================================================
+    LOG("Building individual light mesh BVH (BLAS) ...");
+
     Model* triLights = scene.triLights;
 
     for (auto light : triLights->meshes) {
-        // Loop over index list (to setup individual triangles)
-        // NOTE: all lights must be exported as triangular meshes
-        // NOTE 2: the emission of the light is taken from its diffuse color component (see model.h)
+        MeshLight meshLight;
+        meshLight.flux = 0.f;
+        meshLight.triIdx = this->triLightList.size();
+
+        int numTri = 0;
         for (auto index : light->index) {
-            TriLight lightData;
+            // First, setup data foran individual triangle light source
+            TriLight triLight;
 
-            lightData.v1 = light->vertex[index.x];
-            lightData.v2 = light->vertex[index.y];
-            lightData.v3 = light->vertex[index.z];
-            lightData.cg = (lightData.v1 + lightData.v2 + lightData.v3) / 3.f;
-            lightData.normal = normalize(light->normal[index.x]+light->normal[index.y]+light->normal[index.z]);
-            lightData.area = 0.5f * length(cross(lightData.v1 - lightData.v2, lightData.v3 - lightData.v2));
+            triLight.v1 = light->vertex[index.x];
+            triLight.v2 = light->vertex[index.y];
+            triLight.v3 = light->vertex[index.z];
 
-            lightData.emissionRadiance = light->emit;
-            lightData.flux = 3.1415926f * lightData.area * (light->emit.x+light->emit.y+light->emit.z) / 3.f;
+            triLight.cg = (triLight.v1 + triLight.v2 + triLight.v3) / 3.f;
+            triLight.normal = normalize(light->normal[index.x] + light->normal[index.y] + light->normal[index.z]);
+            triLight.area = 0.5f * length(cross(triLight.v1 - triLight.v2, triLight.v3 - triLight.v2));
 
-            triLightList.push_back(lightData);
+            triLight.emit = light->emit;
+            triLight.flux = 3.1415926f * triLight.area * (triLight.emit.x+triLight.emit.y+triLight.emit.z) / 3.f;
+
+            triLight.aabbMin = owl::min(triLight.aabbMin, triLight.v1);
+            triLight.aabbMin = owl::min(triLight.aabbMin, triLight.v2);
+            triLight.aabbMin = owl::min(triLight.aabbMin, triLight.v3);
+
+            triLight.aabbMax = owl::max(triLight.aabbMax, triLight.v1);
+            triLight.aabbMax = owl::max(triLight.aabbMax, triLight.v2);
+            triLight.aabbMax = owl::max(triLight.aabbMax, triLight.v3);
+
+            triLightList.push_back(triLight); // append to a global list of all triangle light sources
+            
+            // Next, update the AABB and flux of current light mesh
+            meshLight.aabbMin = owl::min(meshLight.aabbMin, triLight.aabbMin);
+            meshLight.aabbMax = owl::max(meshLight.aabbMax, triLight.aabbMax);
+            meshLight.flux += triLight.flux;
+
+            // Keep track of number of triangles in the current light mesh
+            numTri++;
         }
+
+        meshLight.triCount = numTri;
+        meshLight.cg = (meshLight.aabbMin + meshLight.aabbMax) / 2.f;
+
+        // Construct BVH for the current light mesh
+        int rootNodeIdx = this->lightBlas.size(); // Root node index (BLAS since it consists of actual triangles)
+        LightBVH root;
+        root.left = root.right = 0;
+        root.primIdx = meshLight.triIdx;
+        root.primCount = meshLight.triCount;
+        this->lightBlas.push_back(root);
+
+        this->updateLightBVHNodeBounds<TriLight>(rootNodeIdx, this->lightBlas, this->triLightList);
+        this->subdivideLightBVH<TriLight>(rootNodeIdx, this->lightBlas, this->triLightList);
+
+        // Finally, set current light mesh parameters and addto a global list of all light meshes
+        meshLight.bvhIdx = rootNodeIdx;
+        meshLight.bvhHeight = this->getLightBVHHeight(rootNodeIdx, this->lightBlas);
+        meshLightList.push_back(meshLight);
     }
 
-    // Build the Light BVH (ref: https://link.springer.com/chapter/10.1007/978-1-4842-4427-2_18)
-    LOG("Building light BVH...");
-    int numAreaLights = this->triLightList.size();
+    // Build the TLAS on light meshes (NOT on triangles)
+    // Note, this is build on 'meshLightList', not on 'triLightList'
+    LOG("Building BVH on meshes (TLAS) ...");
 
     LightBVH root;
     root.left = root.right = 0;
     root.primIdx = 0;
-    root.primCount = numAreaLights;
-    this->lightBvh.push_back(root);
-    
-    this->updateLightBVHNodeBounds(0, this->lightBvh, this->triLightList);
-    this->subdivideLightBVH(0, this->lightBvh, this->triLightList);
+    root.primCount = meshLightList.size();
+    this->lightTlas.push_back(root);
 
-    int lightBvhHeight = this->getLightBVHHeight(0, this->lightBvh);
+    this->updateLightBVHNodeBounds<MeshLight>(0, this->lightTlas, this->meshLightList);
+    this->subdivideLightBVH<MeshLight>(0, this->lightTlas, this->meshLightList);
+    this->lightTlasHeight = this->getLightBVHHeight(0, this->lightTlas);
 
-    LOG(std::to_string(this->lightBvh[0].flux));
-
-    LOG("Light BVH built");
+    LOG("All light BVH built");
 
     // ====================================================
     // Launch Parameters setup
     // ====================================================
     OWLVarDecl launchParamsDecl[] = {
-        {"areaLights", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, areaLights)},
-        {"numAreaLights", OWL_INT, OWL_OFFSETOF(LaunchParams, numAreaLights)},
-
-        {"areaLightsBVH", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, areaLightsBVH)},
-        {"areaLightsBVHHeight", OWL_INT, OWL_OFFSETOF(LaunchParams, areaLightsBVHHeight)},
-
+        // The actual light triangles
+        {"triLights", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, triLights)},
+        {"numTriLights", OWL_INT, OWL_OFFSETOF(LaunchParams, numTriLights)},
+        // The mesh lights
+        {"meshLights", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, meshLights)},
+        {"numMeshLights", OWL_INT, OWL_OFFSETOF(LaunchParams, numMeshLights)},
+        // The light BLAS and TLAS
+        {"lightBlas", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, lightBlas)},
+        {"lightTlas", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, lightTlas)},
+        {"lightTlasHeight", OWL_INT, OWL_OFFSETOF(LaunchParams, lightTlasHeight)},
+        // ALl other parameters
         {"accumBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, accumBuffer)},
         {"accumId", OWL_INT, OWL_OFFSETOF(LaunchParams, accumId)},
         {"rendererType", OWL_INT, OWL_OFFSETOF(LaunchParams, rendererType)},
@@ -344,16 +392,25 @@ void RenderWindow::initialize(Scene& scene)
 
     owlParamsSet1i(this->launchParams, "rendererType", (int)this->rendererType);
 
-    // Upload the light BVH constructed above
-    OWLBuffer lightBVHBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(LightBVH), this->lightBvh.size(), this->lightBvh.data());
-    owlParamsSetBuffer(this->launchParams, "areaLightsBVH", lightBVHBuffer);
-    owlParamsSet1i(this->launchParams, "areaLightsBVHHeight", lightBvhHeight);
-
-    // Upload the <actual> data for all area lights
+    // Upload the <actual> triangle data for all area lights
     OWLBuffer triLightsBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(TriLight), triLightList.size(), triLightList.data());
-    owlParamsSetBuffer(this->launchParams, "areaLights", triLightsBuffer);
-    owlParamsSet1i(this->launchParams, "numAreaLights", this->triLightList.size());
+    owlParamsSetBuffer(this->launchParams, "triLights", triLightsBuffer);
+    owlParamsSet1i(this->launchParams, "numTriLights", this->triLightList.size());
 
+    // Upload the mesh data for all area lights
+    OWLBuffer meshLightsBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(MeshLight), meshLightList.size(), meshLightList.data());
+    owlParamsSetBuffer(this->launchParams, "meshLights", meshLightsBuffer);
+    owlParamsSet1i(this->launchParams, "numMeshLights", this->meshLightList.size());
+
+    // Upload the BLAS and TLAS for lights
+    OWLBuffer lightBlasBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(LightBVH), lightBlas.size(), lightBlas.data());
+    owlParamsSetBuffer(this->launchParams, "lightBlas", lightBlasBuffer);
+
+    OWLBuffer lightTlasBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(LightBVH), lightTlas.size(), lightTlas.data());
+    owlParamsSetBuffer(this->launchParams, "lightTlas", lightTlasBuffer);
+    owlParamsSet1i(this->launchParams, "lightTlasHeight", lightTlasHeight);
+
+    // Upload accumulation buffer and ID
     owlParamsSet1i(this->launchParams, "accumId", this->accumId);
     owlParamsSetBuffer(this->launchParams, "accumBuffer", this->accumBuffer);
 

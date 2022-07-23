@@ -14,9 +14,10 @@ struct BST {
     int right = -1;
 };
 
-inline __device__ void traverseLBVH(SurfaceInteraction& si, int& selectedAreaLight, float& lightSelectionPdf, vec2f randVec);
+inline __device__ void traverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, int& selectedIdx,
+    float& lightSelectionPdf, vec2f randVec);
 inline __device__ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3],
-    float amplitude, vec3f iso_frame[3], TriLight& areaLight);
+    float amplitude, vec3f iso_frame[3], TriLight& triLight);
 
 inline __device__ vec3f estimateDirectLighting(SurfaceInteraction& si);
 inline __device__ vec3f estimateDirectLightingLBVH(SurfaceInteraction& si);
@@ -24,7 +25,7 @@ inline __device__ vec3f ltcDirecLighingBaseline(SurfaceInteraction& si);
 
 inline __device__ vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, bool useBst);
 
-inline __device__ vec3f multipleImportanceSampling(SurfaceInteraction& si, int selectedAreaLight, float lightSelectionPdf, vec2f rand1, vec2f rand2);
+inline __device__ vec3f multipleImportanceSampling(SurfaceInteraction& si, int selectedTriLight, float lightSelectionPdf, vec2f rand1, vec2f rand2);
 
 OPTIX_RAYGEN_PROGRAM(rayGen)()
 {
@@ -129,13 +130,13 @@ OPTIX_CLOSEST_HIT_PROGRAM(triangleMeshCH)()
         if (self.isLight)
             color = self.emit;
         else
-            color = ltcDirectLightingLBVH(si, false);
+            color = estimateDirectLightingLBVH(si);
     }
     else if (optixLaunchParams.rendererType == LTC_LBVH_BST) {
         if (self.isLight)
             color = self.emit;
         else
-            color = ltcDirectLightingLBVH(si, true);
+            color = estimateDirectLightingLBVH(si);
     }
 }
 
@@ -150,28 +151,34 @@ OPTIX_MISS_PROGRAM(miss)()
 }
 
 inline __device__
-void traverseLBVH(SurfaceInteraction& si, int& selectedAreaLight, float& lightSelectionPdf, vec2f randVec)
+void traverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, int& selectedIdx, 
+                    float& lightSelectionPdf, vec2f randVec)
 {
-    selectedAreaLight = -1;
+    selectedIdx = -1;
     lightSelectionPdf = 1.f;
 
     float r1 = randVec.x;
     float r2 = randVec.y;
 
-    int nodeIdx = 0;
-    for (int i = 0; i < optixLaunchParams.areaLightsBVHHeight + 1; i++) {
-        LightBVH node = optixLaunchParams.areaLightsBVH[nodeIdx];
+    int nodeIdx = rootNodeIdx;
+    for (int i = 0; i < bvhHeight + 1; i++) {
+        LightBVH node = bvh[nodeIdx];
 
         // If leaf
         if (node.left == 0 && node.right == 0) {
-            selectedAreaLight = node.primIdx + round(r1 * node.primCount);
-            lightSelectionPdf *= 1.f / node.primCount;
+            if (node.primCount == 1) {
+                selectedIdx = node.primIdx;
+            }
+            else {
+                selectedIdx = node.primIdx + round(r1 * (node.primCount-1));
+                lightSelectionPdf *= 1.f / node.primCount;
+            }
 
             break;
         }
 
-        LightBVH leftNode = optixLaunchParams.areaLightsBVH[node.left];
-        LightBVH rightNode = optixLaunchParams.areaLightsBVH[node.right];
+        LightBVH leftNode = bvh[node.left];
+        LightBVH rightNode = bvh[node.right];
 
         float leftImp = 1.f / pow(owl::length(leftNode.aabbMid - si.p), 2.f);
         float rightImp = 1.f / pow(owl::length(rightNode.aabbMid - si.p), 2.f);
@@ -204,14 +211,14 @@ void traverseLBVH(SurfaceInteraction& si, int& selectedAreaLight, float& lightSe
 
 inline __device__
 vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3], float amplitude,
-    vec3f iso_frame[3], TriLight& areaLight)
+    vec3f iso_frame[3], TriLight& triLight)
 {
-    vec3f lv1 = areaLight.v1;
-    vec3f lv2 = areaLight.v2;
-    vec3f lv3 = areaLight.v3;
-    vec3f lemit = areaLight.emissionRadiance;
-    vec3f lnormal = areaLight.normal;
-    float larea = areaLight.area;
+    vec3f lv1 = triLight.v1;
+    vec3f lv2 = triLight.v2;
+    vec3f lv3 = triLight.v3;
+    vec3f lemit = triLight.emit;
+    vec3f lnormal = triLight.normal;
+    float larea = triLight.area;
 
     // Move to origin and normalize
     lv1 = owl::normalize(lv1 - si.p);
@@ -285,140 +292,140 @@ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_m
     return color;
 }
 
-inline __device__ 
-vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, bool useBst)
-{
-    const vec2i pixelId = owl::getLaunchIndex();
-    owl::common::LCG<MAX_LTC_LIGHTS*4> rng(pixelId.x * pixelId.y, optixLaunchParams.accumId);
-    float eps1 = rng();
-    float eps2 = rng();
-
-    vec3f wo_local = normalize(apply_mat(si.to_local, si.wo));
-    if (wo_local.z < 0.f)
-        return vec3f(0.f);
-
-    vec3f normal_local(0.f, 0.f, 1.f);
-    vec3f color(0.0, 0.0, 0.0);
-
-    /* Analytic shading via LTCs */
-    vec3f ltc_mat[3], ltc_mat_inv[3];
-    float alpha = si.alpha;
-    float theta = sphericalTheta(wo_local);
-
-    float amplitude = 1.f;
-    fetchLtcMat(alpha, theta, ltc_mat, amplitude);
-    matrixInverse(ltc_mat, ltc_mat_inv);
-
-    vec3f iso_frame[3];
-
-    iso_frame[0] = wo_local;
-    iso_frame[0].z = 0.f;
-    iso_frame[0] = normalize(iso_frame[0]);
-    iso_frame[2] = normal_local;
-    iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
-
-    int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
-    int selectedEnd = 0;
-
-    if (useBst) {
-        BST set[MAX_LTC_LIGHTS * 2];
-        int setEnd = 0;
-
-        int numAreaLights = optixLaunchParams.numAreaLights;
-
-        int ridx = -1;
-        float rpdf = 1.f;
-        traverseLBVH(si, ridx, rpdf, vec2f(rng(), rng()));
-
-        set[setEnd++].data = ridx;
-        selectedIdx[selectedEnd++] = ridx;
-
-        [[ unroll ]]
-        for (int i = 0; i < MAX_LTC_LIGHTS; i++) {
-            ridx = -1;
-            rpdf = 1.f;
-            traverseLBVH(si, ridx, rpdf, vec2f(rng(), rng()));
-
-            int setIdx = 0;
-            bool found = false;
-            [[ unroll ]]
-            for (int j = 0; j < MAX_LTC_LIGHTS; j++) {
-
-                // If found
-                if (set[setIdx].data == ridx) {
-                    found = true;
-                    break;
-                }
-
-                // Insert if empty node
-                if (set[setIdx].data == -1 && set[setIdx].left == -1 && set[setIdx].right == -1) {
-                    set[setIdx].data = ridx;
-                    break;
-                }
-
-                // If child
-                if (set[setIdx].data != -1 && set[setIdx].left == -1 && set[setIdx].right == -1) {
-                    set[setEnd++].data = ridx;
-                    set[setEnd++].data = -1;
-
-                    if (ridx > set[setIdx].data) {
-                        set[setIdx].right = setEnd - 2;
-                        set[setIdx].left = setEnd - 1;
-                    }
-                    else {
-                        set[setIdx].right = setEnd - 1;
-                        set[setIdx].left = setEnd - 2;
-                    }
-
-                    break;
-                }
-
-                if (ridx > set[setIdx].data) {
-                    setIdx = set[setIdx].right;
-                }
-                else {
-                    setIdx = set[setIdx].left;
-                }
-
-            }
-
-            if (!found)
-                selectedIdx[selectedEnd++] = ridx;
-        }
-    }
-    else {
-        int numAreaLights = optixLaunchParams.numAreaLights;
-
-        int ridx = -1;
-        float rpdf = 1.f;
-        traverseLBVH(si, ridx, rpdf, vec2f(rng(), rng()));
-        selectedIdx[selectedEnd++] = ridx;
-
-        for (int i = 0; i < MAX_LTC_LIGHTS*2; i++) {
-            traverseLBVH(si, ridx, rpdf, vec2f(rng(), rng()));
-
-            bool found = false;
-            for (int j = 0; j < selectedEnd; j++) {
-                if (selectedIdx[j] == ridx) {
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found) {
-                selectedIdx[selectedEnd++] = ridx;
-            }
-        }
-    }
-
-    [[ unroll ]]
-    for (int i = 0; i < selectedEnd; i++) {
-        color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
-            optixLaunchParams.areaLights[selectedIdx[i]]);
-    }
-
-    return color;
-}
+// inline __device__ 
+// vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, bool useBst)
+// {
+//     const vec2i pixelId = owl::getLaunchIndex();
+//     owl::common::LCG<MAX_LTC_LIGHTS*4> rng(pixelId.x * pixelId.y, optixLaunchParams.accumId);
+//     float eps1 = rng();
+//     float eps2 = rng();
+// 
+//     vec3f wo_local = normalize(apply_mat(si.to_local, si.wo));
+//     if (wo_local.z < 0.f)
+//         return vec3f(0.f);
+// 
+//     vec3f normal_local(0.f, 0.f, 1.f);
+//     vec3f color(0.0, 0.0, 0.0);
+// 
+//     /* Analytic shading via LTCs */
+//     vec3f ltc_mat[3], ltc_mat_inv[3];
+//     float alpha = si.alpha;
+//     float theta = sphericalTheta(wo_local);
+// 
+//     float amplitude = 1.f;
+//     fetchLtcMat(alpha, theta, ltc_mat, amplitude);
+//     matrixInverse(ltc_mat, ltc_mat_inv);
+// 
+//     vec3f iso_frame[3];
+// 
+//     iso_frame[0] = wo_local;
+//     iso_frame[0].z = 0.f;
+//     iso_frame[0] = normalize(iso_frame[0]);
+//     iso_frame[2] = normal_local;
+//     iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
+// 
+//     int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
+//     int selectedEnd = 0;
+// 
+//     if (useBst) {
+//         BST set[MAX_LTC_LIGHTS * 2];
+//         int setEnd = 0;
+// 
+//         int numTriLights = optixLaunchParams.numTriLights;
+// 
+//         int ridx = -1;
+//         float rpdf = 1.f;
+//         traverseLBVH(si, ridx, rpdf, vec2f(rng(), rng()));
+// 
+//         set[setEnd++].data = ridx;
+//         selectedIdx[selectedEnd++] = ridx;
+// 
+//         [[ unroll ]]
+//         for (int i = 0; i < MAX_LTC_LIGHTS; i++) {
+//             ridx = -1;
+//             rpdf = 1.f;
+//             traverseLBVH(si, ridx, rpdf, vec2f(rng(), rng()));
+// 
+//             int setIdx = 0;
+//             bool found = false;
+//             [[ unroll ]]
+//             for (int j = 0; j < MAX_LTC_LIGHTS; j++) {
+// 
+//                 // If found
+//                 if (set[setIdx].data == ridx) {
+//                     found = true;
+//                     break;
+//                 }
+// 
+//                 // Insert if empty node
+//                 if (set[setIdx].data == -1 && set[setIdx].left == -1 && set[setIdx].right == -1) {
+//                     set[setIdx].data = ridx;
+//                     break;
+//                 }
+// 
+//                 // If child
+//                 if (set[setIdx].data != -1 && set[setIdx].left == -1 && set[setIdx].right == -1) {
+//                     set[setEnd++].data = ridx;
+//                     set[setEnd++].data = -1;
+// 
+//                     if (ridx > set[setIdx].data) {
+//                         set[setIdx].right = setEnd - 2;
+//                         set[setIdx].left = setEnd - 1;
+//                     }
+//                     else {
+//                         set[setIdx].right = setEnd - 1;
+//                         set[setIdx].left = setEnd - 2;
+//                     }
+// 
+//                     break;
+//                 }
+// 
+//                 if (ridx > set[setIdx].data) {
+//                     setIdx = set[setIdx].right;
+//                 }
+//                 else {
+//                     setIdx = set[setIdx].left;
+//                 }
+// 
+//             }
+// 
+//             if (!found)
+//                 selectedIdx[selectedEnd++] = ridx;
+//         }
+//     }
+//     else {
+//         int numTriLights = optixLaunchParams.numTriLights;
+// 
+//         int ridx = -1;
+//         float rpdf = 1.f;
+//         traverseLBVH(si, ridx, rpdf, vec2f(rng(), rng()));
+//         selectedIdx[selectedEnd++] = ridx;
+// 
+//         for (int i = 0; i < MAX_LTC_LIGHTS*2; i++) {
+//             traverseLBVH(si, ridx, rpdf, vec2f(rng(), rng()));
+// 
+//             bool found = false;
+//             for (int j = 0; j < selectedEnd; j++) {
+//                 if (selectedIdx[j] == ridx) {
+//                     found = true;
+//                     break;
+//                 }
+//             }
+// 
+//             if (!found) {
+//                 selectedIdx[selectedEnd++] = ridx;
+//             }
+//         }
+//     }
+// 
+//     [[ unroll ]]
+//     for (int i = 0; i < selectedEnd; i++) {
+//         color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
+//             optixLaunchParams.triLights[selectedIdx[i]]);
+//     }
+// 
+//     return color;
+// }
 
 inline __device__
 vec3f ltcDirecLighingBaseline(SurfaceInteraction& si)
@@ -451,9 +458,9 @@ vec3f ltcDirecLighingBaseline(SurfaceInteraction& si)
     iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
 
     [[ unroll ]]
-    for (int lidx = 0; lidx < optixLaunchParams.numAreaLights; lidx++) {
+    for (int lidx = 0; lidx < optixLaunchParams.numTriLights; lidx++) {
         color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, 
-                                            optixLaunchParams.areaLights[lidx]);
+                                            optixLaunchParams.triLights[lidx]);
     }
 
     return color;
@@ -464,17 +471,35 @@ vec3f estimateDirectLightingLBVH(SurfaceInteraction& si)
 {
     const vec2i pixelId = owl::getLaunchIndex();
     owl::common::LCG<16> rng(pixelId.x * pixelId.y, optixLaunchParams.accumId);
-
-    float lightSelectionPdf = 1.f;
-    int selectedAreaLight = 0;
+    
+    // First, traverse the light TLAS and retrive the mesh light
+    float lightTlasPdf = 1.f;
+    int lightTlasIdx = 0;
+    int lightTlasRootNodeIdx = 0;
     vec2f rand0(rng(), rng());
 
-    traverseLBVH(si, selectedAreaLight, lightSelectionPdf, rand0);
+    traverseLBVH(optixLaunchParams.lightTlas, optixLaunchParams.lightTlasHeight, lightTlasRootNodeIdx, 
+        si, lightTlasIdx, lightTlasPdf, rand0);
 
-    vec2f rand1 = vec2f(rng(), rng());
+    MeshLight meshLight = optixLaunchParams.meshLights[lightTlasIdx];
+
+    // Finally, traverse the light BLAS and get the actual triangle
+    float lightBlasPdf = 1.f;
+    int lightBlasIdx = 0;
+    int lightBlasRootNodeIdx = meshLight.bvhIdx;
+    vec2f rand1(rng(), rng());
+
+    traverseLBVH(optixLaunchParams.lightBlas, meshLight.bvhHeight, lightBlasRootNodeIdx,
+        si, lightBlasIdx, lightBlasPdf, rand1);
+
+    int selectedTriLight = lightBlasIdx;
+    float lightSelectionPdf = lightTlasPdf * lightBlasPdf;
+
+    // MIS with light and BRDF
     vec2f rand2 = vec2f(rng(), rng());
+    vec2f rand3 = vec2f(rng(), rng());
 
-    vec3f color = multipleImportanceSampling(si, selectedAreaLight, lightSelectionPdf, rand1, rand2);
+    vec3f color = multipleImportanceSampling(si, selectedTriLight, lightSelectionPdf, rand2, rand3);
 
     color.x = owl::max(0.f, color.x);
     color.y = owl::max(0.f, color.y);
@@ -489,13 +514,13 @@ vec3f estimateDirectLighting(SurfaceInteraction& si)
     const vec2i pixelId = owl::getLaunchIndex();
     owl::common::LCG<16> rng(pixelId.x * pixelId.y, optixLaunchParams.accumId);
 
-    int selectedAreaLight = round(rng() * optixLaunchParams.numAreaLights);
-    float lightSelectionPdf = 1.f / optixLaunchParams.numAreaLights;
+    int selectedTriLight = round(rng() * (optixLaunchParams.numTriLights-1));
+    float lightSelectionPdf = 1.f / optixLaunchParams.numTriLights;
 
     vec2f rand1 = vec2f(rng(), rng());
     vec2f rand2 = vec2f(rng(), rng());
 
-    vec3f color = multipleImportanceSampling(si, selectedAreaLight, lightSelectionPdf, rand1, rand2);
+    vec3f color = multipleImportanceSampling(si, selectedTriLight, lightSelectionPdf, rand1, rand2);
 
     color.x = owl::max(0.f, color.x);
     color.y = owl::max(0.f, color.y);
@@ -505,9 +530,9 @@ vec3f estimateDirectLighting(SurfaceInteraction& si)
 }
 
 inline __device__
-vec3f multipleImportanceSampling(SurfaceInteraction& si, int selectedAreaLight, float lightSelectionPdf, vec2f rand1, vec2f rand2)
+vec3f multipleImportanceSampling(SurfaceInteraction& si, int selectedTriLight, float lightSelectionPdf, vec2f rand1, vec2f rand2)
 {
-    TriLight areaLight = optixLaunchParams.areaLights[selectedAreaLight];
+    TriLight triLight = optixLaunchParams.triLights[selectedTriLight];
 
     vec3f color(0.f, 0.f, 0.f);
     vec3f wo_local = normalize(apply_mat(si.to_local, si.wo));
@@ -516,12 +541,12 @@ vec3f multipleImportanceSampling(SurfaceInteraction& si, int selectedAreaLight, 
     {
         float light_pdf, brdf_pdf;
 
-        vec3f lv1 = areaLight.v1;
-        vec3f lv2 = areaLight.v2;
-        vec3f lv3 = areaLight.v3;
-        vec3f lnormal = areaLight.normal;
-        vec3f lemit = areaLight.emissionRadiance;
-        float larea = areaLight.area;
+        vec3f lv1 = triLight.v1;
+        vec3f lv2 = triLight.v2;
+        vec3f lv3 = triLight.v3;
+        vec3f lnormal = triLight.normal;
+        vec3f lemit = triLight.emit;
+        float larea = triLight.area;
 
         vec3f lpoint = samplePointOnTriangle(lv1, lv2, lv3, rand1.x, rand1.y);
         vec3f wi = normalize(lpoint - si.p);
