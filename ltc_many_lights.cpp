@@ -1,4 +1,5 @@
 #include "owl/owl.h"
+#include "owl/common/math/random.h"
 #include "owlViewer/OWLViewer.h"
 
 #include "ltc_many_lights_cuda.cuh"
@@ -40,6 +41,7 @@ struct RenderWindow : public owl::viewer::OWLViewer
     void setRendererType(RendererType type);
 
     int getLightBVHHeight(uint32_t nodeIdx, std::vector<LightBVH>& bvh);
+    float evaluateSAHForLightBVH(LightBVH& node, std::vector<TriLight>& primitives, int axis, float pos);
     void updateLightBVHNodeBounds(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<TriLight>& primitives);
     void subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<TriLight>& primitives);
     
@@ -80,6 +82,32 @@ void RenderWindow::setRendererType(RendererType type)
     owlParamsSet1i(this->launchParams, "rendererType", (int)this->rendererType);
 }
 
+float RenderWindow::evaluateSAHForLightBVH(LightBVH& node, std::vector<TriLight>& primitives, int axis, float pos)
+{
+    AABB leftBox, rightBox;
+    int leftCount = 0, rightCount = 0;
+
+    for (uint32_t i = node.primIdx; i < node.primCount; i++) {
+        TriLight& light = primitives[i];
+
+        if (light.cg[axis] < pos) {
+            leftCount++;
+            leftBox.grow(light.v1);
+            leftBox.grow(light.v2);
+            leftBox.grow(light.v3);
+        }
+        else {
+            rightCount++;
+            rightBox.grow(light.v1);
+            rightBox.grow(light.v2);
+            rightBox.grow(light.v3);
+        }
+    }
+
+    float cost = leftCount * leftBox.area() + rightCount * rightBox.area();
+    return cost > 0.f ? cost : 1e30f;
+}
+
 int RenderWindow::getLightBVHHeight(uint32_t nodeIdx, std::vector<LightBVH>& bvh)
 {
     LightBVH& node = bvh[nodeIdx];
@@ -95,10 +123,10 @@ int RenderWindow::getLightBVHHeight(uint32_t nodeIdx, std::vector<LightBVH>& bvh
 void RenderWindow::updateLightBVHNodeBounds(uint32_t nodeIdx, std::vector<LightBVH> &bvh, std::vector<TriLight> &primitives)
 {
     LightBVH& node = bvh[nodeIdx];
-    node.aabbMax = vec3f(1e30f);
-    node.aabbMin = vec3f(-1e30f);
+    node.aabbMax = vec3f(-1e30f);
+    node.aabbMin = vec3f(1e30f);
 
-    for (int i = node.primIdx; i < node.primCount; i++) {
+    for (uint32_t i = node.primIdx; i < node.primCount; i++) {
         TriLight& light = primitives[i];
 
         node.aabbMin = owl::min(node.aabbMin, light.v1);
@@ -115,15 +143,48 @@ void RenderWindow::updateLightBVHNodeBounds(uint32_t nodeIdx, std::vector<LightB
 
 void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<TriLight>& primitives)
 {
-    if (bvh[nodeIdx].primCount <= 2)
+    if (bvh[nodeIdx].primCount <= 2) {
+        bvh[nodeIdx].flux = 0.f;
+        for (int z = bvh[nodeIdx].primIdx; z < bvh[nodeIdx].primCount; z++) {
+            bvh[nodeIdx].flux += primitives[z].flux;
+        }
+
+        bvh[nodeIdx].flux /= bvh[nodeIdx].primCount;
+    
         return;
-
+    }
+    
     vec3f extent = bvh[nodeIdx].aabbMax - bvh[nodeIdx].aabbMin;
-    int axis = 0;
 
-    if (extent.y > extent.x) axis = 1;
-    if (extent.z > extent[axis]) axis = 2;
+    int axis = 0;
+    if (extent.y < extent.x) axis = 1;
+    if (extent.z < extent[axis]) axis = 2;
     float splitPos = bvh[nodeIdx].aabbMin[axis] + extent[axis] * 0.5f;
+
+    // int axis = -1;
+    // float splitPos = 0.f, splitCost = 1e30f;
+    // for (int a = 0; a < 3; a++) {
+    //     for (uint32_t i = bvh[nodeIdx].primIdx; i < bvh[nodeIdx].primCount; i++) {
+    //         TriLight& light = primitives[i];
+    //         float candidatePos = light.cg[axis];
+    //         float candidateCost = this->evaluateSAHForLightBVH(bvh[nodeIdx], primitives, a, candidatePos);
+    //         if (candidateCost < splitCost) {
+    //             splitCost = candidateCost;
+    //             axis = a;
+    //             splitPos = candidatePos;
+    //         }
+    //     }
+    // }
+    // 
+    // vec3f e = bvh[nodeIdx].aabbMax - bvh[nodeIdx].aabbMin;
+    // float parentArea = e.x * e.y + e.y * e.z + e.z * e.x;
+    // float parentCost = bvh[nodeIdx].primCount * parentArea;
+    // if (splitCost >= parentCost) {
+    //     for (int z = bvh[nodeIdx].primIdx; z < bvh[nodeIdx].primCount; z++) {
+    //         bvh[nodeIdx].flux += primitives[z].flux;
+    //     }
+    //     return;
+    // }
 
     int i = bvh[nodeIdx].primIdx;
     int j = i + bvh[nodeIdx].primCount - 1;
@@ -143,7 +204,16 @@ void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bv
     }
 
     int leftCount = i - bvh[nodeIdx].primIdx;
-    if (leftCount == 0 || leftCount == bvh[nodeIdx].primCount) return;
+    if (leftCount == 0 || leftCount == bvh[nodeIdx].primCount) {
+        bvh[nodeIdx].flux = 0.f;
+        for (int z = bvh[nodeIdx].primIdx; z < bvh[nodeIdx].primCount; z++) {
+            bvh[nodeIdx].flux += primitives[z].flux;
+        }
+
+        bvh[nodeIdx].flux /= bvh[nodeIdx].primCount;
+
+        return;
+    }
 
     bvh[nodeIdx].left = bvh.size();
     LightBVH leftNode;
@@ -164,6 +234,8 @@ void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bv
 
     this->subdivideLightBVH(bvh[nodeIdx].left, bvh, primitives);
     this->subdivideLightBVH(bvh[nodeIdx].right, bvh, primitives);
+
+    bvh[nodeIdx].flux = (bvh[bvh[nodeIdx].left].flux + bvh[bvh[nodeIdx].right].flux) / 2.0;
 }
 
 void RenderWindow::initialize(Scene& scene)
@@ -207,6 +279,7 @@ void RenderWindow::initialize(Scene& scene)
             lightData.area = 0.5f * length(cross(lightData.v1 - lightData.v2, lightData.v3 - lightData.v2));
 
             lightData.emissionRadiance = light->emit;
+            lightData.flux = 3.1415926f * lightData.area * (light->emit.x+light->emit.y+light->emit.z) / 3.f;
 
             triLightList.push_back(lightData);
         }
@@ -226,6 +299,8 @@ void RenderWindow::initialize(Scene& scene)
     this->subdivideLightBVH(0, this->lightBvh, this->triLightList);
 
     int lightBvhHeight = this->getLightBVHHeight(0, this->lightBvh);
+
+    LOG(std::to_string(this->lightBvh[0].flux));
 
     LOG("Light BVH built");
 
@@ -499,7 +574,7 @@ void RenderWindow::render()
         sbtDirty = false;
     }
 
-    if (this->rendererType == LTC_BASELINE && accumId >= 1) {
+    if (CHECK_IF_LTC(this->rendererType) && accumId >= 1) {
         drawUI();
     }
     else {
@@ -632,12 +707,12 @@ int main(int argc, char** argv)
 
         nlohmann::json stats;
 
-        int imgName = 0;
         for (auto renderer : scene.renderers) {
 
             win.setRendererType(static_cast<RendererType>(renderer));
             std::string rendererName = rendererNames[renderer];
-
+            
+            int imgName = 0;    
             for (auto cam : scene.cameras) {
                 win.camera.setOrientation(cam.from, cam.at, cam.up, owl::viewer::toDegrees(acosf(cam.cosFovy)));
                 win.resize(resolution);

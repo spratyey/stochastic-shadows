@@ -8,9 +8,21 @@
 #include "ltc_utils.cuh"
 #include "polygon_utils.cuh"
 
+struct BST {
+    int data = -1;
+    int left = -1;
+    int right = -1;
+};
+
+inline __device__ void traverseLBVH(SurfaceInteraction& si, int& selectedAreaLight, float& lightSelectionPdf, vec2f randVec);
+inline __device__ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3],
+    float amplitude, vec3f iso_frame[3], TriLight& areaLight);
+
 inline __device__ vec3f estimateDirectLighting(SurfaceInteraction& si);
 inline __device__ vec3f estimateDirectLightingLBVH(SurfaceInteraction& si);
 inline __device__ vec3f ltcDirecLighingBaseline(SurfaceInteraction& si);
+
+inline __device__ vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, bool useBst);
 
 inline __device__ vec3f multipleImportanceSampling(SurfaceInteraction& si, int selectedAreaLight, float lightSelectionPdf, vec2f rand1, vec2f rand2);
 
@@ -113,6 +125,18 @@ OPTIX_CLOSEST_HIT_PROGRAM(triangleMeshCH)()
         else
             color = ltcDirecLighingBaseline(si);
     }
+    else if (optixLaunchParams.rendererType == LTC_LBVH_LINEAR) {
+        if (self.isLight)
+            color = self.emit;
+        else
+            color = ltcDirectLightingLBVH(si, false);
+    }
+    else if (optixLaunchParams.rendererType == LTC_LBVH_BST) {
+        if (self.isLight)
+            color = self.emit;
+        else
+            color = ltcDirectLightingLBVH(si, true);
+    }
 }
 
 OPTIX_MISS_PROGRAM(miss)()
@@ -126,17 +150,154 @@ OPTIX_MISS_PROGRAM(miss)()
 }
 
 inline __device__
-vec3f ltcDirecLighingBaseline(SurfaceInteraction& si)
+void traverseLBVH(SurfaceInteraction& si, int& selectedAreaLight, float& lightSelectionPdf, vec2f randVec)
+{
+    selectedAreaLight = -1;
+    lightSelectionPdf = 1.f;
+
+    float r1 = randVec.x;
+    float r2 = randVec.y;
+
+    int nodeIdx = 0;
+    for (int i = 0; i < optixLaunchParams.areaLightsBVHHeight + 1; i++) {
+        LightBVH node = optixLaunchParams.areaLightsBVH[nodeIdx];
+
+        // If leaf
+        if (node.left == 0 && node.right == 0) {
+            selectedAreaLight = node.primIdx + round(r1 * node.primCount);
+            lightSelectionPdf *= 1.f / node.primCount;
+
+            break;
+        }
+
+        LightBVH leftNode = optixLaunchParams.areaLightsBVH[node.left];
+        LightBVH rightNode = optixLaunchParams.areaLightsBVH[node.right];
+
+        float leftImp = 1.f / pow(owl::length(leftNode.aabbMid - si.p), 2.f);
+        float rightImp = 1.f / pow(owl::length(rightNode.aabbMid - si.p), 2.f);
+        float sum = leftImp + rightImp;
+
+        leftImp = leftImp / sum;
+        rightImp = rightImp / sum;
+
+        float eps = r2;
+        if (eps < leftImp) {
+            nodeIdx = node.left;
+            lightSelectionPdf *= leftImp;
+        }
+        else {
+            nodeIdx = node.right;
+            lightSelectionPdf *= rightImp;
+        }
+
+        if (r1 < leftImp)
+            r1 = r1 / leftImp;
+        else
+            r1 = (r1 - leftImp) / rightImp;
+
+        if (r2 < leftImp)
+            r2 = r2 / leftImp;
+        else
+            r2 = (r2 - leftImp) / rightImp;
+    }
+}
+
+inline __device__
+vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3], float amplitude,
+    vec3f iso_frame[3], TriLight& areaLight)
+{
+    vec3f lv1 = areaLight.v1;
+    vec3f lv2 = areaLight.v2;
+    vec3f lv3 = areaLight.v3;
+    vec3f lemit = areaLight.emissionRadiance;
+    vec3f lnormal = areaLight.normal;
+    float larea = areaLight.area;
+
+    // Move to origin and normalize
+    lv1 = owl::normalize(lv1 - si.p);
+    lv2 = owl::normalize(lv2 - si.p);
+    lv3 = owl::normalize(lv3 - si.p);
+
+    vec3f cg = normalize(lv1 + lv2 + lv3);
+    if (owl::dot(-cg, lnormal) < 0.f)
+        return vec3f(0.f);
+
+    lv1 = owl::normalize(apply_mat(si.to_local, lv1));
+    lv2 = owl::normalize(apply_mat(si.to_local, lv2));
+    lv3 = owl::normalize(apply_mat(si.to_local, lv3));
+
+    lv1 = owl::normalize(apply_mat(iso_frame, lv1));
+    lv2 = owl::normalize(apply_mat(iso_frame, lv2));
+    lv3 = owl::normalize(apply_mat(iso_frame, lv3));
+
+    float diffuse_shading = 0.f;
+    float ggx_shading = 0.f;
+
+    vec3f diff_clipped[5] = { lv1, lv2, lv3, lv1, lv1 };
+    int diff_vcount = clipPolygon(3, diff_clipped);
+    
+    if (diff_vcount == 3) {
+        diffuse_shading = integrateEdge(diff_clipped[0], diff_clipped[1]);
+        diffuse_shading += integrateEdge(diff_clipped[1], diff_clipped[2]);
+        diffuse_shading += integrateEdge(diff_clipped[2], diff_clipped[0]);
+        diffuse_shading = owl::abs(diffuse_shading);
+    }
+    else if (diff_vcount == 4) {
+        diffuse_shading = integrateEdge(diff_clipped[0], diff_clipped[1]);
+        diffuse_shading += integrateEdge(diff_clipped[1], diff_clipped[2]);
+        diffuse_shading += integrateEdge(diff_clipped[2], diff_clipped[3]);
+        diffuse_shading += integrateEdge(diff_clipped[3], diff_clipped[0]);
+        diffuse_shading = owl::abs(diffuse_shading);
+    }
+
+    diff_clipped[0] = owl::normalize(apply_mat(ltc_mat_inv, diff_clipped[0]));
+    diff_clipped[1] = owl::normalize(apply_mat(ltc_mat_inv, diff_clipped[1]));
+    diff_clipped[2] = owl::normalize(apply_mat(ltc_mat_inv, diff_clipped[2]));
+    diff_clipped[3] = owl::normalize(apply_mat(ltc_mat_inv, diff_clipped[3]));
+    diff_clipped[4] = owl::normalize(apply_mat(ltc_mat_inv, diff_clipped[4]));
+
+    vec3f ltc_clipped[5] = { diff_clipped[0], diff_clipped[1], diff_clipped[2], diff_clipped[3], diff_clipped[4] };
+    int ltc_vcount = clipPolygon(diff_vcount, ltc_clipped);
+
+    if (ltc_vcount == 3) {
+        ggx_shading = integrateEdge(ltc_clipped[0], ltc_clipped[1]);
+        ggx_shading += integrateEdge(ltc_clipped[1], ltc_clipped[2]);
+        ggx_shading += integrateEdge(ltc_clipped[2], ltc_clipped[0]);
+        ggx_shading = owl::abs(ggx_shading);
+    }
+    else if (ltc_vcount == 4) {
+        ggx_shading = integrateEdge(ltc_clipped[0], ltc_clipped[1]);
+        ggx_shading += integrateEdge(ltc_clipped[1], ltc_clipped[2]);
+        ggx_shading += integrateEdge(ltc_clipped[2], ltc_clipped[3]);
+        ggx_shading += integrateEdge(ltc_clipped[3], ltc_clipped[0]);
+        ggx_shading = owl::abs(ggx_shading);
+    }
+    else if (ltc_vcount == 5) {
+        ggx_shading = integrateEdge(ltc_clipped[0], ltc_clipped[1]);
+        ggx_shading += integrateEdge(ltc_clipped[1], ltc_clipped[2]);
+        ggx_shading += integrateEdge(ltc_clipped[2], ltc_clipped[3]);
+        ggx_shading += integrateEdge(ltc_clipped[3], ltc_clipped[4]);
+        ggx_shading += integrateEdge(ltc_clipped[4], ltc_clipped[0]);
+        ggx_shading = owl::abs(ggx_shading);
+    }
+
+    vec3f color = (si.diffuse * lemit * diffuse_shading) + (amplitude * lemit * ggx_shading);
+    return color;
+}
+
+inline __device__ 
+vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, bool useBst)
 {
     const vec2i pixelId = owl::getLaunchIndex();
-    owl::common::LCG<4> rng(pixelId.x * pixelId.y, optixLaunchParams.accumId);
+    owl::common::LCG<MAX_LTC_LIGHTS*4> rng(pixelId.x * pixelId.y, optixLaunchParams.accumId);
+    float eps1 = rng();
+    float eps2 = rng();
 
     vec3f wo_local = normalize(apply_mat(si.to_local, si.wo));
     if (wo_local.z < 0.f)
         return vec3f(0.f);
 
     vec3f normal_local(0.f, 0.f, 1.f);
-
     vec3f color(0.0, 0.0, 0.0);
 
     /* Analytic shading via LTCs */
@@ -153,88 +314,146 @@ vec3f ltcDirecLighingBaseline(SurfaceInteraction& si)
     iso_frame[0] = wo_local;
     iso_frame[0].z = 0.f;
     iso_frame[0] = normalize(iso_frame[0]);
-
     iso_frame[2] = normal_local;
-
     iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
 
+    int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
+    int selectedEnd = 0;
+
+    if (useBst) {
+        BST set[MAX_LTC_LIGHTS * 2];
+        int setEnd = 0;
+
+        int numAreaLights = optixLaunchParams.numAreaLights;
+
+        int ridx = -1;
+        float rpdf = 1.f;
+        traverseLBVH(si, ridx, rpdf, vec2f(rng(), rng()));
+
+        set[setEnd++].data = ridx;
+        selectedIdx[selectedEnd++] = ridx;
+
+        [[ unroll ]]
+        for (int i = 0; i < MAX_LTC_LIGHTS; i++) {
+            ridx = -1;
+            rpdf = 1.f;
+            traverseLBVH(si, ridx, rpdf, vec2f(rng(), rng()));
+
+            int setIdx = 0;
+            bool found = false;
+            [[ unroll ]]
+            for (int j = 0; j < MAX_LTC_LIGHTS; j++) {
+
+                // If found
+                if (set[setIdx].data == ridx) {
+                    found = true;
+                    break;
+                }
+
+                // Insert if empty node
+                if (set[setIdx].data == -1 && set[setIdx].left == -1 && set[setIdx].right == -1) {
+                    set[setIdx].data = ridx;
+                    break;
+                }
+
+                // If child
+                if (set[setIdx].data != -1 && set[setIdx].left == -1 && set[setIdx].right == -1) {
+                    set[setEnd++].data = ridx;
+                    set[setEnd++].data = -1;
+
+                    if (ridx > set[setIdx].data) {
+                        set[setIdx].right = setEnd - 2;
+                        set[setIdx].left = setEnd - 1;
+                    }
+                    else {
+                        set[setIdx].right = setEnd - 1;
+                        set[setIdx].left = setEnd - 2;
+                    }
+
+                    break;
+                }
+
+                if (ridx > set[setIdx].data) {
+                    setIdx = set[setIdx].right;
+                }
+                else {
+                    setIdx = set[setIdx].left;
+                }
+
+            }
+
+            if (!found)
+                selectedIdx[selectedEnd++] = ridx;
+        }
+    }
+    else {
+        int numAreaLights = optixLaunchParams.numAreaLights;
+
+        int ridx = -1;
+        float rpdf = 1.f;
+        traverseLBVH(si, ridx, rpdf, vec2f(rng(), rng()));
+        selectedIdx[selectedEnd++] = ridx;
+
+        for (int i = 0; i < MAX_LTC_LIGHTS*2; i++) {
+            traverseLBVH(si, ridx, rpdf, vec2f(rng(), rng()));
+
+            bool found = false;
+            for (int j = 0; j < selectedEnd; j++) {
+                if (selectedIdx[j] == ridx) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                selectedIdx[selectedEnd++] = ridx;
+            }
+        }
+    }
+
+    [[ unroll ]]
+    for (int i = 0; i < selectedEnd; i++) {
+        color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
+            optixLaunchParams.areaLights[selectedIdx[i]]);
+    }
+
+    return color;
+}
+
+inline __device__
+vec3f ltcDirecLighingBaseline(SurfaceInteraction& si)
+{
+    const vec2i pixelId = owl::getLaunchIndex();
+    owl::common::LCG<16> rng(pixelId.x * pixelId.y, optixLaunchParams.accumId);
+
+    vec3f wo_local = normalize(apply_mat(si.to_local, si.wo));
+    if (wo_local.z < 0.f)
+        return vec3f(0.f);
+
+    vec3f normal_local(0.f, 0.f, 1.f);
+    vec3f color(0.0, 0.0, 0.0);
+
+    /* Analytic shading via LTCs */
+    vec3f ltc_mat[3], ltc_mat_inv[3];
+    float alpha = si.alpha;
+    float theta = sphericalTheta(wo_local);
+
+    float amplitude = 1.f;
+    fetchLtcMat(alpha, theta, ltc_mat, amplitude);
+    matrixInverse(ltc_mat, ltc_mat_inv);
+
+    vec3f iso_frame[3];
+
+    iso_frame[0] = wo_local;
+    iso_frame[0].z = 0.f;
+    iso_frame[0] = normalize(iso_frame[0]);
+    iso_frame[2] = normal_local;
+    iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
+
+    [[ unroll ]]
     for (int lidx = 0; lidx < optixLaunchParams.numAreaLights; lidx++) {
-        vec3f lv1 = optixLaunchParams.areaLights[lidx].v1;
-        vec3f lv2 = optixLaunchParams.areaLights[lidx].v2;
-        vec3f lv3 = optixLaunchParams.areaLights[lidx].v3;
-        vec3f lemit = optixLaunchParams.areaLights[lidx].emissionRadiance;
-        vec3f lnormal = optixLaunchParams.areaLights[lidx].normal;
-        float larea = optixLaunchParams.areaLights[lidx].area;
-
-        // Move to origin and normalize
-        lv1 = owl::normalize(lv1 - si.p);
-        lv2 = owl::normalize(lv2 - si.p);
-        lv3 = owl::normalize(lv3 - si.p);
-
-        vec3f cg = normalize(lv1 + lv2 + lv3);
-        if (owl::dot(-cg, lnormal) < 0.f)
-            continue;
-        
-        lv1 = owl::normalize(apply_mat(si.to_local, lv1));
-        lv2 = owl::normalize(apply_mat(si.to_local, lv2));
-        lv3 = owl::normalize(apply_mat(si.to_local, lv3));
-        
-        lv1 = owl::normalize(apply_mat(iso_frame, lv1));
-        lv2 = owl::normalize(apply_mat(iso_frame, lv2));
-        lv3 = owl::normalize(apply_mat(iso_frame, lv3));
-
-        float diffuse_shading = 0.f;
-        float ggx_shading = 0.f;
-
-        vec3f diff_clipped[5] = { lv1, lv2, lv3, lv1, lv1 };
-        int diff_vcount = clipPolygon(3, diff_clipped);
-
-        if (diff_vcount == 3) {
-            diffuse_shading = integrateEdge(diff_clipped[0], diff_clipped[1]);
-            diffuse_shading += integrateEdge(diff_clipped[1], diff_clipped[2]);
-            diffuse_shading += integrateEdge(diff_clipped[2], diff_clipped[0]);
-            diffuse_shading = owl::abs(diffuse_shading);
-        }
-        else if (diff_vcount == 4) {
-            diffuse_shading = integrateEdge(diff_clipped[0], diff_clipped[1]);
-            diffuse_shading += integrateEdge(diff_clipped[1], diff_clipped[2]);
-            diffuse_shading += integrateEdge(diff_clipped[2], diff_clipped[3]);
-            diffuse_shading += integrateEdge(diff_clipped[3], diff_clipped[0]);
-            diffuse_shading = owl::abs(diffuse_shading);
-        }
-
-        diff_clipped[0] = owl::normalize(apply_mat(ltc_mat_inv, diff_clipped[0]));
-        diff_clipped[1] = owl::normalize(apply_mat(ltc_mat_inv, diff_clipped[1]));
-        diff_clipped[2] = owl::normalize(apply_mat(ltc_mat_inv, diff_clipped[2]));
-        diff_clipped[3] = owl::normalize(apply_mat(ltc_mat_inv, diff_clipped[3]));
-        diff_clipped[4] = owl::normalize(apply_mat(ltc_mat_inv, diff_clipped[4]));
-
-        vec3f ltc_clipped[5] = { diff_clipped[0], diff_clipped[1], diff_clipped[2], diff_clipped[3], diff_clipped[4] };
-        int ltc_vcount = clipPolygon(diff_vcount, ltc_clipped);
-
-        if (ltc_vcount == 3) {
-            ggx_shading = integrateEdge(ltc_clipped[0], ltc_clipped[1]);
-            ggx_shading += integrateEdge(ltc_clipped[1], ltc_clipped[2]);
-            ggx_shading += integrateEdge(ltc_clipped[2], ltc_clipped[0]);
-            ggx_shading = owl::abs(ggx_shading);
-        }
-        else if (ltc_vcount == 4) {
-            ggx_shading = integrateEdge(ltc_clipped[0], ltc_clipped[1]);
-            ggx_shading += integrateEdge(ltc_clipped[1], ltc_clipped[2]);
-            ggx_shading += integrateEdge(ltc_clipped[2], ltc_clipped[3]);
-            ggx_shading += integrateEdge(ltc_clipped[3], ltc_clipped[0]);
-            ggx_shading = owl::abs(ggx_shading);
-        }
-        else if (ltc_vcount == 5) {
-            ggx_shading = integrateEdge(ltc_clipped[0], ltc_clipped[1]);
-            ggx_shading += integrateEdge(ltc_clipped[1], ltc_clipped[2]);
-            ggx_shading += integrateEdge(ltc_clipped[2], ltc_clipped[3]);
-            ggx_shading += integrateEdge(ltc_clipped[3], ltc_clipped[4]);
-            ggx_shading += integrateEdge(ltc_clipped[4], ltc_clipped[0]);
-            ggx_shading = owl::abs(ggx_shading);
-        }
-
-        color += (si.diffuse * lemit * diffuse_shading) + (amplitude * lemit * ggx_shading);
+        color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, 
+                                            optixLaunchParams.areaLights[lidx]);
     }
 
     return color;
@@ -244,42 +463,13 @@ inline __device__
 vec3f estimateDirectLightingLBVH(SurfaceInteraction& si)
 {
     const vec2i pixelId = owl::getLaunchIndex();
-    owl::common::LCG<4> rng(pixelId.x * pixelId.y, optixLaunchParams.accumId);
+    owl::common::LCG<16> rng(pixelId.x * pixelId.y, optixLaunchParams.accumId);
 
-    int nodeIdx = 0;
     float lightSelectionPdf = 1.f;
     int selectedAreaLight = 0;
-    for (int i = 0; i < optixLaunchParams.areaLightsBVHHeight + 1; i++) {
-        LightBVH node = optixLaunchParams.areaLightsBVH[nodeIdx];
-        
-        // If leaf
-        if (node.left == 0 && node.right == 0) {
-            selectedAreaLight = node.primIdx + round(rng() * node.primCount);
-            lightSelectionPdf *= 1.f / node.primCount;
+    vec2f rand0(rng(), rng());
 
-            break;
-        }
-
-        LightBVH leftNode = optixLaunchParams.areaLightsBVH[node.left];
-        LightBVH rightNode = optixLaunchParams.areaLightsBVH[node.right];
-
-        float leftImp = 1.f / pow(owl::length(leftNode.aabbMid - si.p), 2.f);
-        float rightImp = 1.f / pow(owl::length(rightNode.aabbMid - si.p), 2.f);
-        float sum = leftImp + rightImp;
-
-        leftImp = leftImp / sum;
-        rightImp = rightImp / sum;
-
-        float eps = rng();
-        if (eps < leftImp) {
-            nodeIdx = node.left;
-            lightSelectionPdf *= leftImp;
-        }
-        else {
-            nodeIdx = node.right;
-            lightSelectionPdf *= rightImp;
-        }
-    }
+    traverseLBVH(si, selectedAreaLight, lightSelectionPdf, rand0);
 
     vec2f rand1 = vec2f(rng(), rng());
     vec2f rand2 = vec2f(rng(), rng());
@@ -360,41 +550,41 @@ vec3f multipleImportanceSampling(SurfaceInteraction& si, int selectedAreaLight, 
             brdf_pdf = get_brdf_pdf(si.alpha, si.alpha, wo_local, normalize(wo_local + wi_local));
             float weight = balanceHeuristic(1, light_pdf, 1, brdf_pdf);
 
-            color += brdf * lemit * owl::abs(wi_local.z) * weight / light_pdf;
+            color += brdf * lemit * owl::abs(wi_local.z) /* * weight */ / light_pdf;
         }
     }
 
-    {
-        float light_pdf, brdf_pdf;
-
-        vec3f wi_local = sample_GGX(rand2, si.alpha, si.alpha, wo_local, brdf_pdf);
-        vec3f wi = normalize(apply_mat(si.to_world, wi_local));
-
-        if (brdf_pdf <= 0.f)
-            return color;
-
-        ShadowRay ray;
-        ray.origin = si.p + 1e-3f * si.n_geom;
-        ray.direction = wi;
-
-        ShadowRayData srd;
-        owl::traceRay(optixLaunchParams.world, ray, srd);
-
-        if (wi_local.z > 0.f && wo_local.z > 0.f && srd.visibility != vec3f(0.f)) {
-            float xmy = pow(owl::length(srd.point - si.p), 2.f);
-            float lDotWi = owl::abs(owl::dot(srd.normal, -wi));
-            light_pdf = lightSelectionPdf * (xmy / (srd.area * lDotWi));
-
-            if (light_pdf <= 0.f)
-                return color;
-
-            vec3f brdf = evaluate_brdf(wo_local, wi_local, si.diffuse, si.alpha);
-            float weight = balanceHeuristic(1, brdf_pdf, 1, light_pdf);
-
-            color += brdf * srd.emit * owl::abs(wi_local.z) * weight / brdf_pdf;
-        }
-
-    }
+    // {
+    //     float light_pdf, brdf_pdf;
+    // 
+    //     vec3f wi_local = sample_GGX(rand2, si.alpha, si.alpha, wo_local, brdf_pdf);
+    //     vec3f wi = normalize(apply_mat(si.to_world, wi_local));
+    // 
+    //     if (brdf_pdf <= 0.f)
+    //         return color;
+    // 
+    //     ShadowRay ray;
+    //     ray.origin = si.p + 1e-3f * si.n_geom;
+    //     ray.direction = wi;
+    // 
+    //     ShadowRayData srd;
+    //     owl::traceRay(optixLaunchParams.world, ray, srd);
+    // 
+    //     if (wi_local.z > 0.f && wo_local.z > 0.f && srd.visibility != vec3f(0.f)) {
+    //         float xmy = pow(owl::length(srd.point - si.p), 2.f);
+    //         float lDotWi = owl::abs(owl::dot(srd.normal, -wi));
+    //         light_pdf = srd.light_pdf * (xmy / (srd.area * lDotWi));
+    // 
+    //         if (light_pdf <= 0.f)
+    //             return color;
+    // 
+    //         vec3f brdf = evaluate_brdf(wo_local, wi_local, si.diffuse, si.alpha);
+    //         float weight = balanceHeuristic(1, brdf_pdf, 1, light_pdf);
+    // 
+    //         color += brdf * srd.emit * owl::abs(wi_local.z) * weight / brdf_pdf;
+    //     }
+    // 
+    // }
 
     return color;
 }

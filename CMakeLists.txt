@@ -29,6 +29,8 @@ add_executable(ltc_many_lights
 "imgui_widgets.cpp"
 )
 
+add_executable(testbed "testbed.cpp")
+
 target_link_libraries(ltc_many_lights 
 PRIVATE
 # Compiled PTX
