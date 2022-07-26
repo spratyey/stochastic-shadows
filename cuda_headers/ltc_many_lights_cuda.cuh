@@ -8,17 +8,22 @@ enum RendererType {
 	DIFFUSE=0,
 	ALPHA=1,
 	NORMALS=2,
-	DIRECT_LIGHT=3,
-	DIRECT_LIGHT_LBVH=4,
-	LTC_BASELINE=5,
-	LTC_LBVH_LINEAR=6,
-	LTC_LBVH_BST = 7,
+	DIRECT_LIGHT_LSAMPLE,
+	DIRECT_LIGHT_BRDFSAMPLE,
+	DIRECT_LIGHT_MIS,
+	DIRECT_LIGHT_LBVH_LSAMPLE,
+	DIRECT_LIGHT_LBVH_BRDFSAMPLE,
+	DIRECT_LIGHT_LBVH_MIS,
+	LTC_BASELINE,
+	LTC_LBVH_LINEAR,
+	LTC_LBVH_BST,
 	NUM_RENDERER_TYPES
 };
 
-const char* rendererNames[NUM_RENDERER_TYPES] = {"Diffuse", "Alpha", "Normals", "Direct Light", 
-												"Direct Light (Light BVH)", "LTC Baseline", 
-												"LTC (Light BVH, Linear)", "LTC (Light BVH, BST)" };
+const char* rendererNames[NUM_RENDERER_TYPES] = {"Diffuse", "Alpha", "Normals",
+												"Direct Light (Light)", "Direct Light (BRDF)", "Direct Light (MIS)",
+												"Direct Light (Light BVH) (Light)", "Direct Light (Light BVH) (BRDF)", "Direct Light (Light BVH) (MIS)",
+												"LTC Baseline", "LTC (Light BVH, Linear)", "LTC (Light BVH, BST)" };
 
 __inline__ __host__
 bool CHECK_IF_LTC(RendererType t)
@@ -42,8 +47,8 @@ typedef RayT<1, 2> ShadowRay;
 #endif
 
 struct LightBVH {
-	vec3f aabbMin = vec3f(0.f);
-	vec3f aabbMax = vec3f(0.f);
+	vec3f aabbMin = vec3f(1e30f);
+	vec3f aabbMax = vec3f(-1e30f);
 	vec3f aabbMid = vec3f(0.f);
 	float flux = 0.f;
 
@@ -101,6 +106,8 @@ struct LaunchParams {
 		vec3f dir_du;
 		vec3f dir_dv;
 	} camera;
+
+	float lerp;
 };
 
 __constant__ LaunchParams optixLaunchParams;
@@ -134,7 +141,7 @@ struct MissProgData {
 
 struct ShadowRayData {
 	vec3f visibility;
-	vec3f point, normal;
+	vec3f point, normal, cg;
 	vec3f emit;
 	float area;
 };

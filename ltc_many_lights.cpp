@@ -74,12 +74,15 @@ struct RenderWindow : public owl::viewer::OWLViewer
     std::vector<LightBVH> lightBlas;
     std::vector<LightBVH> lightTlas;
     int lightTlasHeight = 0;
+
+    // Random controls
+    float lerp = 0.5f;
 };
 
 RenderWindow::RenderWindow(Scene& scene, vec2i resolution, bool interactive) 
     : owl::viewer::OWLViewer("LTC Many Lights", resolution, interactive, false)
 {
-    this->rendererType = DIRECT_LIGHT;
+    this->rendererType = DIRECT_LIGHT_LSAMPLE;
     this->currentScene = scene;
     this->initialize(scene);
 }
@@ -131,18 +134,19 @@ int RenderWindow::getLightBVHHeight(uint32_t nodeIdx, std::vector<LightBVH>& bvh
 template <typename T>
 void RenderWindow::updateLightBVHNodeBounds(uint32_t nodeIdx, std::vector<LightBVH> &bvh, std::vector<T> &primitives)
 {
-    LightBVH& node = bvh[nodeIdx];
-    node.aabbMax = vec3f(-1e30f);
-    node.aabbMin = vec3f(1e30f);
+    bvh[nodeIdx].aabbMax = vec3f(-1e30f);
+    bvh[nodeIdx].aabbMin = vec3f(1e30f);
 
-    for (uint32_t i = node.primIdx; i < node.primCount; i++) {
+    for (uint32_t i = bvh[nodeIdx].primIdx; i < bvh[nodeIdx].primIdx + bvh[nodeIdx].primCount; i++) {
         T& prim = primitives[i];
 
-        node.aabbMin = owl::min(node.aabbMin, prim.aabbMin);
-        node.aabbMax = owl::max(node.aabbMax, prim.aabbMax);
+        bvh[nodeIdx].aabbMin = owl::min(bvh[nodeIdx].aabbMin, prim.aabbMin);
+        bvh[nodeIdx].aabbMax = owl::max(bvh[nodeIdx].aabbMax, prim.aabbMax);
+        bvh[nodeIdx].flux += prim.flux;
     }
 
-    node.aabbMid = (node.aabbMin + node.aabbMax) * 0.5f;
+    bvh[nodeIdx].aabbMid = (bvh[nodeIdx].aabbMin + bvh[nodeIdx].aabbMax) * 0.5f;
+    bvh[nodeIdx].flux /= bvh[nodeIdx].primCount;
 }
 
 template <typename T>
@@ -150,7 +154,7 @@ void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bv
 {
     if (bvh[nodeIdx].primCount <= 2) {
         bvh[nodeIdx].flux = 0.f;
-        for (int z = bvh[nodeIdx].primIdx; z < bvh[nodeIdx].primCount; z++) {
+        for (int z = bvh[nodeIdx].primIdx; z < bvh[nodeIdx].primIdx + bvh[nodeIdx].primCount; z++) {
             bvh[nodeIdx].flux += primitives[z].flux;
         }
 
@@ -211,7 +215,7 @@ void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bv
     int leftCount = i - bvh[nodeIdx].primIdx;
     if (leftCount == 0 || leftCount == bvh[nodeIdx].primCount) {
         bvh[nodeIdx].flux = 0.f;
-        for (int z = bvh[nodeIdx].primIdx; z < bvh[nodeIdx].primCount; z++) {
+        for (int z = bvh[nodeIdx].primIdx; z < bvh[nodeIdx].primIdx + bvh[nodeIdx].primCount; z++) {
             bvh[nodeIdx].flux += primitives[z].flux;
         }
 
@@ -240,7 +244,7 @@ void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bv
     this->subdivideLightBVH<T>(bvh[nodeIdx].left, bvh, primitives);
     this->subdivideLightBVH<T>(bvh[nodeIdx].right, bvh, primitives);
 
-    bvh[nodeIdx].flux = (bvh[bvh[nodeIdx].left].flux + bvh[bvh[nodeIdx].right].flux) / 2.0;
+    bvh[nodeIdx].flux = (bvh[bvh[nodeIdx].left].flux + bvh[bvh[nodeIdx].right].flux) / 2.0f;
 }
 
 void RenderWindow::initialize(Scene& scene)
@@ -361,7 +365,7 @@ void RenderWindow::initialize(Scene& scene)
         {"lightBlas", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, lightBlas)},
         {"lightTlas", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, lightTlas)},
         {"lightTlasHeight", OWL_INT, OWL_OFFSETOF(LaunchParams, lightTlasHeight)},
-        // ALl other parameters
+        // All other parameters
         {"accumBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, accumBuffer)},
         {"accumId", OWL_INT, OWL_OFFSETOF(LaunchParams, accumId)},
         {"rendererType", OWL_INT, OWL_OFFSETOF(LaunchParams, rendererType)},
@@ -373,10 +377,15 @@ void RenderWindow::initialize(Scene& scene)
         {"camera.dir_00", OWL_FLOAT3, OWL_OFFSETOF(LaunchParams, camera.dir_00)},
         {"camera.dir_du", OWL_FLOAT3, OWL_OFFSETOF(LaunchParams, camera.dir_du)},
         {"camera.dir_dv", OWL_FLOAT3, OWL_OFFSETOF(LaunchParams, camera.dir_dv)},
+        // Random controls
+        {"lerp", OWL_FLOAT, OWL_OFFSETOF(LaunchParams, lerp)},
         {nullptr}
     };
 
     this->launchParams = owlParamsCreate(context, sizeof(LaunchParams), launchParamsDecl, -1);
+
+    // Random controls
+    owlParamsSet1f(this->launchParams, "lerp", this->lerp);
 
     // Set LTC matrices (8x8, since only isotropic)
     OWLTexture ltc1 = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA32F, 8, 8, ltc_iso_1,
@@ -462,8 +471,8 @@ void RenderWindow::initialize(Scene& scene)
             -1);
 
         // Defines the function name in .cu file, to be used for closest hit processing
-        owlGeomTypeSetClosestHit(triangleGeomType, 0, module, "triangleMeshCH");
-        owlGeomTypeSetAnyHit(triangleGeomType, 1, module, "triangleMeshAH");
+        owlGeomTypeSetClosestHit(triangleGeomType, RADIANCE_RAY_TYPE, module, "triangleMeshCH");
+        owlGeomTypeSetClosestHit(triangleGeomType, SHADOW_RAY_TYPE, module, "triangleMeshCHShadow");
 
         // Create the actual geometry on the device
         OWLGeom triangleGeom = owlGeomCreate(context, triangleGeomType);
@@ -631,7 +640,7 @@ void RenderWindow::render()
         sbtDirty = false;
     }
 
-    if (CHECK_IF_LTC(this->rendererType) && accumId >= 1) {
+    if (CHECK_IF_LTC(this->rendererType) && accumId >= 2) {
         drawUI();
     }
     else {
@@ -706,6 +715,14 @@ void RenderWindow::drawUI()
         if (currentType != this->rendererType) {
             this->rendererType = static_cast<RendererType>(currentType);
             owlParamsSet1i(this->launchParams, "rendererType", currentType);
+            this->cameraChanged();
+        }
+
+        float currentLerp = this->lerp;
+        ImGui::SliderFloat("LERP", &currentLerp, 0.f, 1.f);
+        if (currentLerp != this->lerp) {
+            this->lerp = currentLerp;
+            owlParamsSet1f(this->launchParams, "lerp", this->lerp);
             this->cameraChanged();
         }
 

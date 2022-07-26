@@ -1,4 +1,6 @@
-inline __device__
+#pragma once
+
+__device__
 void fetchLtcMat(float alpha, float theta, vec3f ltc_mat[3], float &amplitude)
 {
     theta = theta * 0.99f / (0.5 * PI);
@@ -14,7 +16,7 @@ void fetchLtcMat(float alpha, float theta, vec3f ltc_mat[3], float &amplitude)
     amplitude = r3.w;
 }
 
-inline __device__
+__device__
 vec3f integrateEdgeVec(vec3f v1, vec3f v2)
 {
     float x = dot(v1, v2);
@@ -29,7 +31,7 @@ vec3f integrateEdgeVec(vec3f v1, vec3f v2)
     return cross(v1, v2) * theta_sintheta;
 }
 
-inline __device__
+__device__
 float integrateEdge(vec3f v1, vec3f v2)
 {
     return integrateEdgeVec(v1, v2).z;

@@ -1,5 +1,6 @@
+#pragma once
 
-inline __device__
+__device__
 vec3f barycentricInterpolate(vec3f* tex, vec3i index)
 {
     float u = optixGetTriangleBarycentrics().x;
@@ -10,7 +11,7 @@ vec3f barycentricInterpolate(vec3f* tex, vec3i index)
         + v * tex[index.z];
 }
 
-inline __device__
+__device__
 vec2f barycentricInterpolate(vec2f* tex, vec3i index)
 {
     float u = optixGetTriangleBarycentrics().x;
@@ -21,7 +22,7 @@ vec2f barycentricInterpolate(vec2f* tex, vec3i index)
         + v * tex[index.z];
 }
 
-inline __device__
+__device__
 vec3f uniformSampleHemisphere(vec2f rand)
 {
     float z = rand.x;
@@ -31,14 +32,42 @@ vec3f uniformSampleHemisphere(vec2f rand)
     return normalize(vec3f(r * cos(phi), r * sin(phi), z));
 }
 
-inline __device__
+__device__
+vec2f ConcentricSampleDisk(vec2f rand) {
+    // Map uniform random numbers to $[-1,1]^2$
+    vec2f uOffset = 2.f * rand - vec2f(1, 1);
+
+    // Handle degeneracy at the origin
+    if (uOffset.x == 0 && uOffset.y == 0) return vec2f(0, 0);
+
+    // Apply concentric mapping to point
+    float theta, r;
+    if (owl::abs(uOffset.x) > owl::abs(uOffset.y)) {
+        r = uOffset.x;
+        theta = PI / 4.f * (uOffset.y / uOffset.x);
+    }
+    else {
+        r = uOffset.y;
+        theta = PI / 2.f - PI / 4.f * (uOffset.x / uOffset.y);
+    }
+    return r * vec2f(owl::cos(theta), owl::sin(theta));
+}
+
+__device__
+vec3f CosineSampleHemisphere(vec2f rand) {
+    vec2f d = ConcentricSampleDisk(rand);
+    float z = owl::sqrt(owl::max(0.f, 1.f - d.x * d.x - d.y * d.y));
+    return normalize(vec3f(d.x, d.y, z));
+}
+
+__device__
 vec3f apply_mat(vec3f mat[3], vec3f v)
 {
     vec3f result(dot(mat[0], v), dot(mat[1], v), dot(mat[2], v));
     return result;
 }
 
-inline __device__
+__device__
 void matrixInverse(vec3f m[3], vec3f minv[3]) {
     int indxc[3], indxr[3];
     int ipiv[3] = { 0, 0, 0 };
@@ -102,7 +131,7 @@ void matrixInverse(vec3f m[3], vec3f minv[3]) {
     }
 }
 
-inline __device__
+__device__
 void orthonormalBasis(vec3f n, vec3f mat[3], vec3f invmat[3])
 {
     vec3f c1, c2, c3;
@@ -127,7 +156,7 @@ void orthonormalBasis(vec3f n, vec3f mat[3], vec3f invmat[3])
     matrixInverse(mat, invmat);
 }
 
-inline __device__
+__device__
 vec3f samplePointOnTriangle(vec3f v1, vec3f v2, vec3f v3,
     float u1, float u2)
 {
@@ -135,12 +164,18 @@ vec3f samplePointOnTriangle(vec3f v1, vec3f v2, vec3f v3,
     return (1 - su1) * v1 + su1 * ((1 - u2) * v2 + u2 * v3);
 }
 
-inline __device__
+__device__
 float sphericalTheta(vec3f p) {
     return acos(p.z);
 }
 
-inline __device__
+__device__
 float balanceHeuristic(int nf, float fPdf, int ng, float gPdf) {
     return (nf * fPdf) / (nf * fPdf + ng * gPdf);
+}
+
+__device__
+float PowerHeuristic(int nf, float fPdf, int ng, float gPdf) {
+    float f = nf * fPdf, g = ng * gPdf;
+    return (f * f) / (f * f + g * g);
 }

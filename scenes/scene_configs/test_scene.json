@@ -1,8 +1,7 @@
 {
   "area_lights": "C:/Users/Projects/OptixRenderer/scenes/obj_files/test_scene/area_lights.obj",
   "renderers": [
-    3,
-    4
+    4, 5
   ],
   "cameras": [
     {
