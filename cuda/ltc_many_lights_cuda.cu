@@ -15,123 +15,6 @@ struct BST {
     int right = -1;
 };
 
-__device__ void stochasticTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, int& selectedIdx,
-    float& lightSelectionPdf, vec2f randVec);
-__device__ float deterministicTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, vec3f point, int& idx);
-
-__device__ void selectFromLBVH(SurfaceInteraction& si, int& selectedIdx, float& lightSelectionPdf, vec2f rand0, vec2f rand1);
-__device__ float pdfFromLBVH(SurfaceInteraction& si, vec3f point);
-
-__device__ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3],
-    float amplitude, vec3f iso_frame[3], TriLight& triLight);
-
-__device__ vec3f estimateDirectLighting(SurfaceInteraction& si, LCGRand& rng, int type);
-__device__ vec3f estimateDirectLightingLBVH(SurfaceInteraction& si, LCGRand& rng, int type);
-__device__ vec3f ltcDirecLighingBaseline(SurfaceInteraction& si, LCGRand& rng);
-
-__device__ vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, LCGRand& rng);
-
-
-__device__ vec3f sampleLightSource(SurfaceInteraction si, int lightIdx, float lightSelectionPdf, vec2f rand, bool mis);
-__device__ vec3f sampleBRDF(SurfaceInteraction si, float lightSelectionPdf, vec2f rand, bool mis);
-
-OPTIX_RAYGEN_PROGRAM(rayGen)()
-{
-    const RayGenData& self = owl::getProgramData<RayGenData>();
-    const vec2i pixelId = owl::getLaunchIndex();
-    const int fbOfs = pixelId.x + self.frameBufferSize.x * pixelId.y;
-
-    LCGRand rng = get_rng(optixLaunchParams.accumId, make_uint2(pixelId.x, pixelId.y), 
-        make_uint2(self.frameBufferSize.x, self.frameBufferSize.y));
-
-    const vec2f screen = (vec2f(pixelId) + +vec2f(lcg_randomf(rng), lcg_randomf(rng))) / vec2f(self.frameBufferSize);
-    RadianceRay ray;
-    ray.origin
-        = optixLaunchParams.camera.pos;
-    ray.direction
-        = normalize(optixLaunchParams.camera.dir_00
-            + screen.u * optixLaunchParams.camera.dir_du
-            + screen.v * optixLaunchParams.camera.dir_dv);
-
-    SurfaceInteraction si;
-    owl::traceRay(optixLaunchParams.world, ray, si);
-
-    vec3f color(0.f, 0.f, 0.f);
-
-    if (si.hit == false)
-        color = si.diffuse;
-    else if (optixLaunchParams.rendererType == DIFFUSE)
-        color = si.diffuse;
-    else if (optixLaunchParams.rendererType == ALPHA)
-        color = si.alpha;
-    else if (optixLaunchParams.rendererType == NORMALS)
-        color = 0.5f * (si.n_geom + 1.f);
-    // Direct lighting with MC
-    else if (optixLaunchParams.rendererType == DIRECT_LIGHT_LSAMPLE) {
-        if (si.isLight)
-            color = si.emit;
-        else
-            color = estimateDirectLighting(si, rng, 0);
-    }
-    else if (optixLaunchParams.rendererType == DIRECT_LIGHT_BRDFSAMPLE) {
-        if (si.isLight)
-            color = si.emit;
-        else
-            color = estimateDirectLighting(si, rng, 1);
-    }
-    else if (optixLaunchParams.rendererType == DIRECT_LIGHT_MIS) {
-        if (si.isLight)
-            color = si.emit;
-        else
-            color = estimateDirectLighting(si, rng, 2);
-    }
-    // Direct lighting with MC and LBVH
-    else if (optixLaunchParams.rendererType == DIRECT_LIGHT_LBVH_LSAMPLE) {
-        if (si.isLight)
-            color = si.emit;
-        else
-            color = estimateDirectLightingLBVH(si, rng, 0);
-    }
-    else if (optixLaunchParams.rendererType == DIRECT_LIGHT_LBVH_BRDFSAMPLE) {
-        if (si.isLight)
-            color = si.emit;
-        else
-            color = estimateDirectLightingLBVH(si, rng, 1);
-    }
-    else if (optixLaunchParams.rendererType == DIRECT_LIGHT_LBVH_MIS) {
-        if (si.isLight)
-            color = si.emit;
-        else
-            color = estimateDirectLightingLBVH(si, rng, 2);
-    }
-    // Direct lighting with LTC
-    else if (optixLaunchParams.rendererType == LTC_BASELINE) {
-        if (si.isLight)
-            color = si.emit;
-        else
-            color = ltcDirecLighingBaseline(si, rng);
-    }
-    else if (optixLaunchParams.rendererType == LTC_LBVH_LINEAR) {
-        if (si.isLight)
-            color = si.emit;
-        else
-            color = ltcDirectLightingLBVH(si, rng);
-    }
-    else if (optixLaunchParams.rendererType == LTC_LBVH_BST) {
-        if (si.isLight)
-            color = si.emit;
-        else
-            color = ltcDirectLightingLBVH(si, rng);
-    }
-
-    if (optixLaunchParams.accumId > 0)
-        color = color + vec3f(optixLaunchParams.accumBuffer[fbOfs]);
-
-    optixLaunchParams.accumBuffer[fbOfs] = vec4f(color, 1.f);
-    color = (1.f / (optixLaunchParams.accumId + 1)) * color;
-    self.frameBuffer[fbOfs] = owl::make_rgba(color);   
-}
-
 OPTIX_CLOSEST_HIT_PROGRAM(triangleMeshCHShadow)()
 {
     const TriangleMeshData& self = owl::getProgramData<TriangleMeshData>();
@@ -425,7 +308,158 @@ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_m
     return color;
 }
 
-__device__ 
+__device__
+vec3f sampleLightSource(SurfaceInteraction si, int lightIdx, float lightSelectionPdf, vec2f rand, bool mis)
+{
+    vec3f color(0.f, 0.f, 0.f);
+    float light_pdf = 0.f, brdf_pdf = 0.f;
+    TriLight triLight = optixLaunchParams.triLights[lightIdx];
+
+    vec3f lv1 = triLight.v1;
+    vec3f lv2 = triLight.v2;
+    vec3f lv3 = triLight.v3;
+    vec3f lnormal = triLight.normal;
+    vec3f lemit = triLight.emit;
+    float larea = triLight.area;
+
+    vec3f lpoint = samplePointOnTriangle(lv1, lv2, lv3, rand.x, rand.y);
+    vec3f wi = normalize(lpoint - si.p);
+    vec3f wi_local = normalize(apply_mat(si.to_local, wi));
+
+    float xmy = pow(owl::length(lpoint - si.p), 2.f);
+    float lDotWi = owl::abs(owl::dot(lnormal, -wi));
+
+    light_pdf = lightSelectionPdf * (xmy / (larea * lDotWi));
+
+    ShadowRay ray;
+    ray.origin = si.p + 1e-3f * si.n_geom;
+    ray.direction = wi;
+
+    ShadowRayData srd;
+    owl::traceRay(optixLaunchParams.world, ray, srd);
+
+    if (si.wo_local.z > 0.f && wi_local.z > 0.f && srd.visibility != vec3f(0.f) && light_pdf > 0.f && owl::dot(-wi, lnormal) > 0.f) {
+        vec3f brdf = evaluate_brdf(si.wo_local, wi_local, si.diffuse, si.alpha);
+        brdf_pdf = get_brdf_pdf(si.alpha, si.wo_local, normalize(si.wo_local + wi_local));
+
+        if (mis && brdf_pdf > 0.f) {
+            float weight = PowerHeuristic(1, light_pdf, 1, brdf_pdf);
+            color += brdf * lemit * owl::abs(wi_local.z) * weight / light_pdf;
+        }
+        else if (!mis) {
+            color += brdf * lemit * owl::abs(wi_local.z) / light_pdf;
+        }
+    }
+
+    return color;
+}
+
+__device__
+vec3f sampleBRDF(SurfaceInteraction si, float lightSelectionPdf, vec2f rand, bool mis)
+{
+    vec3f wi_local = sample_GGX(rand, si.alpha, si.wo_local);
+    vec3f wi = normalize(apply_mat(si.to_world, wi_local));
+
+    ShadowRay ray;
+    ShadowRayData srd;
+    ray.origin = si.p + 1e-3f * si.n_geom;
+    ray.direction = wi;
+    owl::traceRay(optixLaunchParams.world, ray, srd);
+
+    vec3f color(0.f, 0.f, 0.f);
+    float light_pdf = 0.f, brdf_pdf = 0.f;
+
+    if (wi_local.z > 0.f && si.wo_local.z > 0.f && srd.visibility != vec3f(0.f)) {
+        float xmy = pow(owl::length(srd.point - si.p), 2.f);
+        float lDotWi = owl::abs(owl::dot(srd.normal, -wi));
+        light_pdf = lightSelectionPdf * (xmy / (srd.area * lDotWi));
+
+        vec3f brdf = evaluate_brdf(si.wo_local, wi_local, si.diffuse, si.alpha);
+        brdf_pdf = get_brdf_pdf(si.alpha, si.wo_local, normalize(si.wo_local + wi_local));
+
+        if (mis && light_pdf > 0.f && brdf_pdf > 0.f) {
+            float weight = PowerHeuristic(1, brdf_pdf, 1, light_pdf);
+            color += brdf * srd.emit * owl::abs(wi_local.z) * weight / brdf_pdf;
+        }
+        else if (!mis && brdf_pdf > 0.f) {
+            color += brdf * srd.emit * owl::abs(wi_local.z) / brdf_pdf;
+        }
+    }
+
+    return color;
+}
+
+__device__
+vec3f estimateDirectLighting(SurfaceInteraction& si, LCGRand& rng, int type)
+{
+    vec2f rand1 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
+    vec2f rand2 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
+
+    vec3f lightSample = vec3f(0.f);
+    vec3f brdfSample = vec3f(0.f);
+
+    if (type == 0) {
+        int selectedTriLight = round(lcg_randomf(rng) * (optixLaunchParams.numTriLights - 1));
+        float lightSelectionPdf = 1.f / optixLaunchParams.numTriLights;
+
+        lightSample = sampleLightSource(si, selectedTriLight, lightSelectionPdf, rand1, false);
+    }
+    else if (type == 1) {
+        brdfSample = sampleBRDF(si, 0.f, rand2, false);
+    }
+    else if (type == 2) {
+        int selectedTriLight = round(lcg_randomf(rng) * (optixLaunchParams.numTriLights - 1));
+        float lightSelectionPdf = 1.f / optixLaunchParams.numTriLights;
+
+        brdfSample = sampleBRDF(si, lightSelectionPdf, rand1, true);
+        lightSample = sampleLightSource(si, selectedTriLight, lightSelectionPdf, rand2, true);
+    }
+
+    // Make sure there are no negative colors!
+    vec3f color = lightSample + brdfSample;
+    color.x = owl::max(0.f, color.x);
+    color.y = owl::max(0.f, color.y);
+    color.z = owl::max(0.f, color.z);
+
+    return color;
+}
+
+__device__
+vec3f estimateDirectLightingLBVH(SurfaceInteraction& si, LCGRand& rng, int type)
+{
+    vec2f rand0(lcg_randomf(rng), lcg_randomf(rng));
+    vec2f rand1(lcg_randomf(rng), lcg_randomf(rng));
+    vec2f rand2(lcg_randomf(rng), lcg_randomf(rng));
+    vec2f rand3(lcg_randomf(rng), lcg_randomf(rng));
+
+    int selectedTriLight = 0;
+    float lightSelectionPdf = 0.f;
+    selectFromLBVH(si, selectedTriLight, lightSelectionPdf, rand0, rand1);
+
+    vec3f lightSample = vec3f(0.f);
+    vec3f brdfSample = vec3f(0.f);
+
+    if (type == 0) {
+        lightSample = sampleLightSource(si, selectedTriLight, lightSelectionPdf, rand2, false);
+    }
+    else if (type == 1) {
+        brdfSample = sampleBRDF(si, lightSelectionPdf, rand3, false);
+    }
+    else if (type == 2) {
+        brdfSample = sampleBRDF(si, lightSelectionPdf, rand2, true);
+        lightSample = sampleLightSource(si, selectedTriLight, lightSelectionPdf, rand3, true);
+    }
+
+    // Make sure there are no negative colors!
+    vec3f color = lightSample + brdfSample;
+    color.x = owl::max(0.f, color.x);
+    color.y = owl::max(0.f, color.y);
+    color.z = owl::max(0.f, color.z);
+
+    return color;
+}
+
+__device__
 vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, LCGRand& rng)
 {
     vec3f normal_local(0.f, 0.f, 1.f);
@@ -462,7 +496,7 @@ vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, LCGRand& rng)
 
     selectedIdx[selectedEnd++] = ridx;
 
-    for (int i = 0; i < MAX_LTC_LIGHTS*2; i++) {
+    for (int i = 0; i < MAX_LTC_LIGHTS * 2; i++) {
         if (selectedEnd == optixLaunchParams.numTriLights)
             break;
 
@@ -658,158 +692,107 @@ vec3f ltcDirecLighingBaseline(SurfaceInteraction& si, LCGRand& rng)
     iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
 
     for (int lidx = 0; lidx < optixLaunchParams.numTriLights; lidx++) {
-        color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, 
-                                            optixLaunchParams.triLights[lidx]);
+        color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
+            optixLaunchParams.triLights[lidx]);
     }
 
     return color;
 }
 
-__device__
-vec3f estimateDirectLightingLBVH(SurfaceInteraction& si, LCGRand& rng, int type)
+
+OPTIX_RAYGEN_PROGRAM(rayGen)()
 {
-    vec2f rand0(lcg_randomf(rng), lcg_randomf(rng));
-    vec2f rand1(lcg_randomf(rng), lcg_randomf(rng));
-    vec2f rand2(lcg_randomf(rng), lcg_randomf(rng));
-    vec2f rand3(lcg_randomf(rng), lcg_randomf(rng));
+    const RayGenData& self = owl::getProgramData<RayGenData>();
+    const vec2i pixelId = owl::getLaunchIndex();
+    const int fbOfs = pixelId.x + self.frameBufferSize.x * pixelId.y;
 
-    int selectedTriLight = 0;
-    float lightSelectionPdf = 0.f;
-    selectFromLBVH(si, selectedTriLight, lightSelectionPdf, rand0, rand1);
+    LCGRand rng = get_rng(optixLaunchParams.accumId + 10007, make_uint2(pixelId.x, pixelId.y),
+        make_uint2(self.frameBufferSize.x, self.frameBufferSize.y));
 
-    vec3f lightSample = vec3f(0.f);
-    vec3f brdfSample = vec3f(0.f);
+    const vec2f screen = (vec2f(pixelId) + vec2f(lcg_randomf(rng), lcg_randomf(rng))) / vec2f(self.frameBufferSize);
+    RadianceRay ray;
+    ray.origin
+        = optixLaunchParams.camera.pos;
+    ray.direction
+        = normalize(optixLaunchParams.camera.dir_00
+            + screen.u * optixLaunchParams.camera.dir_du
+            + screen.v * optixLaunchParams.camera.dir_dv);
 
-    if (type == 0) {
-        lightSample = sampleLightSource(si, selectedTriLight, lightSelectionPdf, rand2, false);
-    }
-    else if (type == 1) {
-        brdfSample = sampleBRDF(si, lightSelectionPdf, rand3, false);
-    }
-    else if (type == 2) {
-        brdfSample = sampleBRDF(si, lightSelectionPdf, rand2, true);
-        lightSample = sampleLightSource(si, selectedTriLight, lightSelectionPdf, rand3, true);
-    }
-
-    // Make sure there are no negative colors!
-    vec3f color = lightSample + brdfSample;
-    color.x = owl::max(0.f, color.x);
-    color.y = owl::max(0.f, color.y);
-    color.z = owl::max(0.f, color.z);
-
-    return color;
-}
-
-__device__
-vec3f estimateDirectLighting(SurfaceInteraction& si, LCGRand& rng, int type)
-{
-    vec2f rand1 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
-    vec2f rand2 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
-
-    int selectedTriLight = round(lcg_randomf(rng) * (optixLaunchParams.numTriLights-1));
-    float lightSelectionPdf = 1.f / optixLaunchParams.numTriLights;
-
-    vec3f lightSample = vec3f(0.f);
-    vec3f brdfSample = vec3f(0.f);
-
-    if (type == 0) {
-        lightSample = sampleLightSource(si, selectedTriLight, lightSelectionPdf, rand1, false);
-    }
-    else if (type == 1) {
-        brdfSample = sampleBRDF(si, lightSelectionPdf, rand2, false);
-    }
-    else if (type == 2) {
-        brdfSample = sampleBRDF(si, lightSelectionPdf, rand1, true);
-        lightSample = sampleLightSource(si, selectedTriLight, lightSelectionPdf, rand2, true);
-    }
-
-    // Make sure there are no negative colors!
-    vec3f color = lightSample + brdfSample;
-    color.x = owl::max(0.f, color.x);
-    color.y = owl::max(0.f, color.y);
-    color.z = owl::max(0.f, color.z);
-
-    return color;
-}
-
-__device__
-vec3f sampleLightSource(SurfaceInteraction si, int lightIdx, float lightSelectionPdf, vec2f rand, bool mis)
-{
-    vec3f color(0.f, 0.f, 0.f);
-    float light_pdf = 0.f, brdf_pdf = 0.f;
-    TriLight triLight = optixLaunchParams.triLights[lightIdx];
-
-    vec3f lv1 = triLight.v1;
-    vec3f lv2 = triLight.v2;
-    vec3f lv3 = triLight.v3;
-    vec3f lnormal = triLight.normal;
-    vec3f lemit = triLight.emit;
-    float larea = triLight.area;
-
-    vec3f lpoint = samplePointOnTriangle(lv1, lv2, lv3, rand.x, rand.y);
-    si.wi = normalize(lpoint - si.p);
-    si.wi_local = normalize(apply_mat(si.to_local, si.wi));
-
-    float xmy = pow(owl::length(lpoint - si.p), 2.f);
-    float lDotWi = owl::abs(owl::dot(lnormal, -si.wi));
-
-    light_pdf = lightSelectionPdf * (xmy / (larea * lDotWi));
-
-    ShadowRay ray;
-    ray.origin = si.p + 1e-3f * si.n_geom;
-    ray.direction = si.wi;
-
-    ShadowRayData srd;
-    owl::traceRay(optixLaunchParams.world, ray, srd);
-
-    if (si.wo_local.z > 0.f && si.wi_local.z > 0.f && srd.visibility != vec3f(0.f) && light_pdf > 0.f && owl::dot(-si.wi, lnormal) > 0.f) {
-        vec3f brdf = evaluate_brdf(si.wo_local, si.wi_local, si.diffuse, si.alpha);
-        brdf_pdf = get_brdf_pdf(si.alpha, si.wo_local, normalize(si.wo_local + si.wi_local));
-
-        if (mis && brdf_pdf > 0.f) {
-            float weight = PowerHeuristic(1, light_pdf, 1, brdf_pdf);
-            color += brdf * lemit * owl::abs(si.wi_local.z) * weight / light_pdf;
-        }
-        else if(!mis) {
-            color += brdf * lemit * owl::abs(si.wi_local.z) / light_pdf;
-        }
-    }
-
-    return color;
-}
-
-__device__
-vec3f sampleBRDF(SurfaceInteraction si, float lightSelectionPdf, vec2f rand, bool mis)
-{
-    si.wi_local = sample_GGX(rand, si.alpha, si.wo_local);
-    si.wi = normalize(apply_mat(si.to_world, si.wi_local));
-
-    ShadowRay ray;
-    ShadowRayData srd;
-    ray.origin = si.p + 1e-3f * si.n_geom;
-    ray.direction = si.wi;
-    owl::traceRay(optixLaunchParams.world, ray, srd);
+    SurfaceInteraction si;
+    owl::traceRay(optixLaunchParams.world, ray, si);
 
     vec3f color(0.f, 0.f, 0.f);
-    float light_pdf = 0.f, brdf_pdf = 0.f;
 
-    if (si.wi_local.z > 0.f && si.wo_local.z > 0.f && srd.visibility != vec3f(0.f)) {
-        float xmy = pow(owl::length(srd.point - si.p), 2.f);
-        float lDotWi = owl::abs(owl::dot(srd.normal, -si.wi));
-        light_pdf = lightSelectionPdf * (xmy / (srd.area * lDotWi));
-
-        vec3f brdf = evaluate_brdf(si.wo_local, si.wi_local, si.diffuse, si.alpha);
-        brdf_pdf = get_brdf_pdf(si.alpha, si.wo_local, normalize(si.wo_local + si.wi_local));
-
-        if (mis && light_pdf > 0.f && brdf_pdf > 0.f) {
-            float weight = PowerHeuristic(1, brdf_pdf, 1, light_pdf);
-            color += brdf * srd.emit * owl::abs(si.wi_local.z) * weight / brdf_pdf;
-        }
-        else if (!mis && brdf_pdf > 0.f) {
-            color += brdf * srd.emit * owl::abs(si.wi_local.z) / brdf_pdf;
-        }
+    if (si.hit == false)
+        color = si.diffuse;
+    else if (optixLaunchParams.rendererType == DIFFUSE)
+        color = si.diffuse;
+    else if (optixLaunchParams.rendererType == ALPHA)
+        color = si.alpha;
+    else if (optixLaunchParams.rendererType == NORMALS)
+        color = 0.5f * (si.n_geom + 1.f);
+    // Direct lighting with MC
+    else if (optixLaunchParams.rendererType == DIRECT_LIGHT_LSAMPLE) {
+        if (si.isLight)
+            color = si.emit;
+        else
+            color = estimateDirectLighting(si, rng, 0);
+    }
+    else if (optixLaunchParams.rendererType == DIRECT_LIGHT_BRDFSAMPLE) {
+        if (si.isLight)
+            color = si.emit;
+        else
+            color = estimateDirectLighting(si, rng, 1);
+    }
+    else if (optixLaunchParams.rendererType == DIRECT_LIGHT_MIS) {
+        if (si.isLight)
+            color = si.emit;
+        else
+            color = estimateDirectLighting(si, rng, 2);
+    }
+    // Direct lighting with MC and LBVH
+    else if (optixLaunchParams.rendererType == DIRECT_LIGHT_LBVH_LSAMPLE) {
+        if (si.isLight)
+            color = si.emit;
+        else
+            color = estimateDirectLightingLBVH(si, rng, 0);
+    }
+    else if (optixLaunchParams.rendererType == DIRECT_LIGHT_LBVH_BRDFSAMPLE) {
+        if (si.isLight)
+            color = si.emit;
+        else
+            color = estimateDirectLightingLBVH(si, rng, 1);
+    }
+    else if (optixLaunchParams.rendererType == DIRECT_LIGHT_LBVH_MIS) {
+        if (si.isLight)
+            color = si.emit;
+        else
+            color = estimateDirectLightingLBVH(si, rng, 2);
+    }
+    // Direct lighting with LTC
+    else if (optixLaunchParams.rendererType == LTC_BASELINE) {
+        if (si.isLight)
+            color = si.emit;
+        else
+            color = ltcDirecLighingBaseline(si, rng);
+    }
+    else if (optixLaunchParams.rendererType == LTC_LBVH_LINEAR) {
+        if (si.isLight)
+            color = si.emit;
+        else
+            color = ltcDirectLightingLBVH(si, rng);
+    }
+    else if (optixLaunchParams.rendererType == LTC_LBVH_BST) {
+        if (si.isLight)
+            color = si.emit;
+        else
+            color = ltcDirectLightingLBVH(si, rng);
     }
 
-    return color;
-}
+    if (optixLaunchParams.accumId > 0)
+        color = color + vec3f(optixLaunchParams.accumBuffer[fbOfs]);
 
+    optixLaunchParams.accumBuffer[fbOfs] = vec4f(color, 1.f);
+    color = (1.f / (optixLaunchParams.accumId + 1)) * color;
+    self.frameBuffer[fbOfs] = owl::make_rgba(color);
+}

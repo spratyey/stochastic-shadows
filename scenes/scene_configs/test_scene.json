@@ -59,10 +59,10 @@
       ]
     }
   ],
-  "height": 1080,
+  "height": 720,
   "render_output": "C:/Users/Projects/OptixRenderer/scenes/test_scene.png",
   "render_stats": "C:/Users/Projects/OptixRenderer/scenes/test_scene.json",
   "spp": 10,
   "surface_geometry": "C:/Users/Projects/OptixRenderer/scenes/obj_files/test_scene/scene.obj",
-  "width": 1920
+  "width": 1280
 }
