@@ -392,6 +392,7 @@ namespace owl {
     void OWLViewer::key(char key, const vec2i &where)
     {
       if (cameraManipulator) cameraManipulator->key(key,where);
+      customKey(key, where);
     }
 
     /*! this gets called when the user presses a key on the keyboard ... */
