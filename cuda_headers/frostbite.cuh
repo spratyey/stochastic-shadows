@@ -49,40 +49,40 @@ vec3f evaluate_brdf(vec3f wo, vec3f wi, vec3f diffuse_color, float alpha) {
     return brdf;
 }
 
-// __device__
-// float get_brdf_pdf(float alpha, vec3f V, vec3f Ne) {
-//     float cosT = Ne.z;
-//     float alphasq = alpha * alpha;
-// 
-//     float num = alphasq * cosT;
-//     float denom = PI * pow((alphasq - 1.f) * cosT * cosT + 1.f, 2.f);
-// 
-//     float pdf = num / denom;
-//     return pdf / (4.f * dot(V, Ne));
-// }
-// 
-// __device__
-// vec3f sample_GGX(vec2f rand, float alpha, vec3f V) {
-//     float num = 1.f - rand.x;
-//     float denom = rand.x * (alpha * alpha - 1.f) + 1;
-//     float t = acos(owl::sqrt(num / denom));
-//     float p = 2.f * PI * rand.y;
-// 
-//     vec3f N(sin(t) * cos(p), sin(t) * sin(p), cos(t));
-//     vec3f L = -V + 2.0f * N * dot(V, N);
-// 
-//     return normalize(L);
-// }
-
 __device__
 float get_brdf_pdf(float alpha, vec3f V, vec3f Ne) {
-    vec3f L = -V + 2.0f * Ne * dot(V, Ne);
-    L = normalize(L);
+    float cosT = Ne.z;
+    float alphasq = alpha * alpha;
 
-    return L.z / PI;
+    float num = alphasq * cosT;
+    float denom = PI * pow((alphasq - 1.f) * cosT * cosT + 1.f, 2.f);
+
+    float pdf = num / denom;
+    return pdf / (4.f * dot(V, Ne));
 }
 
 __device__
 vec3f sample_GGX(vec2f rand, float alpha, vec3f V) {
-    return CosineSampleHemisphere(rand);
+    float num = 1.f - rand.x;
+    float denom = rand.x * (alpha * alpha - 1.f) + 1;
+    float t = acos(owl::sqrt(num / denom));
+    float p = 2.f * PI * rand.y;
+
+    vec3f N(sin(t) * cos(p), sin(t) * sin(p), cos(t));
+    vec3f L = -V + 2.0f * N * dot(V, N);
+
+    return normalize(L);
 }
+
+// __device__
+// float get_brdf_pdf(float alpha, vec3f V, vec3f Ne) {
+//     vec3f L = -V + 2.0f * Ne * dot(V, Ne);
+//     L = normalize(L);
+// 
+//     return L.z / PI;
+// }
+// 
+// __device__
+// vec3f sample_GGX(vec2f rand, float alpha, vec3f V) {
+//     return CosineSampleHemisphere(rand);
+// }

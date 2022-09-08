@@ -397,15 +397,20 @@ vec3f estimateDirectLighting(SurfaceInteraction& si, LCGRand& rng, int type)
 
     vec3f lightSample = vec3f(0.f);
     vec3f brdfSample = vec3f(0.f);
+    vec3f color = vec3f(0.f);
 
     if (type == 0) {
         int selectedTriLight = round(lcg_randomf(rng) * (optixLaunchParams.numTriLights - 1));
         float lightSelectionPdf = 1.f / optixLaunchParams.numTriLights;
 
         lightSample = sampleLightSource(si, selectedTriLight, lightSelectionPdf, rand1, false);
+
+        color = lightSample;
     }
     else if (type == 1) {
         brdfSample = sampleBRDF(si, 0.f, rand2, false);
+
+        color = brdfSample;
     }
     else if (type == 2) {
         int selectedTriLight = round(lcg_randomf(rng) * (optixLaunchParams.numTriLights - 1));
@@ -413,10 +418,11 @@ vec3f estimateDirectLighting(SurfaceInteraction& si, LCGRand& rng, int type)
 
         brdfSample = sampleBRDF(si, lightSelectionPdf, rand1, true);
         lightSample = sampleLightSource(si, selectedTriLight, lightSelectionPdf, rand2, true);
+
+        color = brdfSample + lightSample;
     }
 
     // Make sure there are no negative colors!
-    vec3f color = lightSample + brdfSample;
     color.x = owl::max(0.f, color.x);
     color.y = owl::max(0.f, color.y);
     color.z = owl::max(0.f, color.z);
