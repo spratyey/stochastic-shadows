@@ -11,8 +11,6 @@
 
 #include "ltc_isotropic.h"
 
-void drawUI();
-
 using namespace owl;
 
 // Compiled PTX code
@@ -641,15 +639,13 @@ void RenderWindow::render()
     }
 
     if (CHECK_IF_LTC(this->rendererType) && accumId >= 2) {
-        drawUI();
+        ;
     }
     else {
         owlParamsSet1i(this->launchParams, "accumId", this->accumId);
 
         owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
         accumId++;
-
-        drawUI();
     }
 }
 

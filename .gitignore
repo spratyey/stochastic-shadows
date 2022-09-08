@@ -1,3 +1,4 @@
 .vs/
-out/
+.git/
+build/
 scenes/obj_files/bistro/

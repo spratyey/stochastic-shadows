@@ -140,10 +140,10 @@ struct MissProgData {
 };
 
 struct ShadowRayData {
-	vec3f visibility;
-	vec3f point, normal, cg;
-	vec3f emit;
-	float area;
+	vec3f visibility = vec3f(0.f);
+	vec3f point = vec3f(0.f), normal = vec3f(0.f), cg = vec3f(0.f);
+	vec3f emit = vec3f(0.f);
+	float area = 0.f;
 };
 
 struct AABB { 

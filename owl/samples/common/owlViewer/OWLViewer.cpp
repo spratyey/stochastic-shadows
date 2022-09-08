@@ -573,6 +573,7 @@ namespace owl {
         }
         render();
         draw();
+        drawUI();
 
         glfwSwapBuffers(handle);
         glfwPollEvents();

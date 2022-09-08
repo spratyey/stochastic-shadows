@@ -90,9 +90,13 @@ namespace owl {
 
       /*! gets called whenever the viewer needs us to re-render out widget */
       virtual void render() {}
+
       
       /*! draw framebuffer using OpenGL */
       virtual void draw();
+
+      virtual void drawUI() {}
+      virtual void customKey(char key, const vec2i& pos) {} 
 
       struct ButtonState {
         bool  isPressed        { false };

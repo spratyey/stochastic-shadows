@@ -19,6 +19,15 @@ embed_ptx(
     owl::owl
   SOURCES
     cuda/ltc_many_lights_cuda.cu
+    
+    cuda_headers/common.cuh
+    cuda_headers/frostbite.cuh
+    cuda_headers/frostbite_anisotropic.cuh
+    cuda_headers/lcg_random.h
+    cuda_headers/ltc_many_lights_cuda.cuh
+    cuda_headers/ltc_utils.cuh
+    cuda_headers/polygon_utils.cuh
+    cuda_headers/utils.cuh
 )
 
 add_executable(ltc_many_lights 
