@@ -671,7 +671,7 @@ vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, LCGRand& rng)
 // }
 
 __device__
-vec3f ltcDirecLighingBaseline(SurfaceInteraction& si, LCGRand& rng)
+vec3f ltcDirectLighingBaseline(SurfaceInteraction& si, LCGRand& rng)
 {
     vec3f wo_local = normalize(apply_mat(si.to_local, si.wo));
     if (wo_local.z < 0.f)
@@ -780,7 +780,7 @@ OPTIX_RAYGEN_PROGRAM(rayGen)()
         if (si.isLight)
             color = si.emit;
         else
-            color = ltcDirecLighingBaseline(si, rng);
+            color = ltcDirectLighingBaseline(si, rng);
     }
     else if (optixLaunchParams.rendererType == LTC_LBVH_LINEAR) {
         if (si.isLight)

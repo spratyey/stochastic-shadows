@@ -2,3 +2,6 @@
 .git/
 build/
 scenes/obj_files/bistro/
+*.swp
+scenes.old
+compile_commands.json

@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.12)
 set(CMAKE_BUILD_TYPE_INIT "Release")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(OptixRenderer VERSION 0.1 LANGUAGES C CXX CUDA)
 
-set(OptiX_ROOT_DIR "C:/ProgramData/NVIDIA Corporation/OptiX SDK 7.4.0/")
+set(OptiX_ROOT_DIR "/home/aakashkt/optix")
 
 set(owl_dir ${PROJECT_SOURCE_DIR}/owl/)
 add_subdirectory(${owl_dir} EXCLUDE_FROM_ALL)

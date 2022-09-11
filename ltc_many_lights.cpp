@@ -732,17 +732,17 @@ void RenderWindow::drawUI()
 int main(int argc, char** argv)
 {
     std::string savePath;
-    bool isInteractive = true;
+    bool isInteractive = false;
 
     std::string currentScene;
-    std::string defaultScene = "C:/Users/Projects/OptixRenderer/scenes/scene_configs/test_scene.json";
+    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/test_scene.json";
 
-    if (argc == 1)
-        currentScene = defaultScene;
-    else
+    if (argc == 2)
         currentScene = std::string(argv[1]);
+    else
+        currentScene = defaultScene;
 
-    if (argc >= 2) {
+    if (argc >= 3) {
         isInteractive = atoi(argv[2]);
     }
     
@@ -773,7 +773,12 @@ int main(int argc, char** argv)
         win.showAndRun();
     }
     else {
-        savePath = std::string(argv[3]);
+        if (argc == 4) {
+          savePath = std::string(argv[3]);
+        } else {
+          savePath = "output";
+        }
+
 
         nlohmann::json stats;
 
@@ -790,7 +795,9 @@ int main(int argc, char** argv)
                 auto start = std::chrono::high_resolution_clock::now();
 
                 win.accumId = 0;
-                for (int sample = 0; sample < scene.spp; sample++) {
+                // Samples should be 1 for LTC
+                int samples = (renderer > 8) ? 1 : scene.spp;
+                for (int sample = 0; sample < samples; sample++) {
                     win.render();
                 }
 
@@ -801,7 +808,7 @@ int main(int argc, char** argv)
                 std::string imgFileName = savePath + "/" + rendererName + "_" + std::to_string(imgName) + ".png";
                 nlohmann::json currentStats = {
                     {"image_name", imgFileName},
-                    {"spp", scene.spp},
+                    {"spp", samples},
                     {"width", scene.imgWidth},
                     {"height", scene.imgHeight},
                     {"frametime_milliseconds", milliseconds_taken},
@@ -818,6 +825,10 @@ int main(int argc, char** argv)
 
         std::ofstream op(savePath + "/stats.json");
         op << std::setw(4) << stats << std::endl;
+        for (auto stat : stats) {
+          LOG(stat["image_name"]);
+          LOG(stat["frametime_milliseconds"]);
+        }
     }
 
     return 0;

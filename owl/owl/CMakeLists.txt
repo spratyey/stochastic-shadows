@@ -145,7 +145,7 @@ if (OWL_HAVE_TBB AND TBB_FOUND)
 endif()
 
 # bind OWL to CUDA (includes and library)
-if(${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.17)
+if(${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.21)
   # for new cmake version, we can rely on the working cuda detection
   # mechanism
   find_package(CUDAToolkit REQUIRED)

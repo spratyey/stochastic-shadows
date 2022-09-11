@@ -1,5 +1,5 @@
 {
-  "area_lights": "C:/Users/Projects/OptixRenderer/scenes/obj_files/test_scene/area_lights.obj",
+  "area_lights": "/home/aakashkt/ishaan/OptixRenderer/scenes/obj_files/test_scene/area_lights.obj",
   "renderers": [
     4, 5
   ],
@@ -60,9 +60,9 @@
     }
   ],
   "height": 720,
-  "render_output": "C:/Users/Projects/OptixRenderer/scenes/test_scene.png",
-  "render_stats": "C:/Users/Projects/OptixRenderer/scenes/test_scene.json",
+  "render_output": "/home/aakashkt/ishaan/OptixRenderer/scenes/test_scene.png",
+  "render_stats": "/home/aakashkt/ishaan/OptixRenderer/scenes/test_scene.json",
   "spp": 10,
-  "surface_geometry": "C:/Users/Projects/OptixRenderer/scenes/obj_files/test_scene/scene.obj",
+  "surface_geometry": "/home/aakashkt/ishaan/OptixRenderer/scenes/obj_files/test_scene/scene.obj",
   "width": 1280
 }
