@@ -1,0 +1,28 @@
+{
+  "area_lights": "/home/aakashkt/ishaan/OptixRenderer/scenes/obj_files/silhoutte_test/area_lights.obj",
+  "renderers": [
+    12
+  ],
+  "cameras": [
+    {
+      "cos_fovy": 0.6600000262260437,
+      "from": [
+        18.0788,
+        -30.3274,
+        12
+      ],
+      "to": [
+        0, 0, 0
+      ],
+      "up": [
+	0, 0, 1
+      ]
+    }
+  ],
+  "height": 720,
+  "render_output": "/home/aakashkt/ishaan/OptixRenderer/scenes/test_scene.png",
+  "render_stats": "/home/aakashkt/ishaan/OptixRenderer/scenes/test_scene.json",
+  "spp": 10,
+  "surface_geometry": "/home/aakashkt/ishaan/OptixRenderer/scenes/obj_files/silhoutte_test/scene.obj",
+  "width": 1280
+}

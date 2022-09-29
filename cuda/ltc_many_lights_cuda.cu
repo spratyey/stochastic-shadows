@@ -196,18 +196,21 @@ void selectFromLBVH(SurfaceInteraction& si, int& selectedIdx, float& lightSelect
     stochasticTraverseLBVH(optixLaunchParams.lightTlas, optixLaunchParams.lightTlasHeight, lightTlasRootNodeIdx,
         si, lightTlasIdx, lightTlasPdf, rand0);
 
-    MeshLight meshLight = optixLaunchParams.meshLights[lightTlasIdx];
+    // MeshLight meshLight = optixLaunchParams.meshLights[lightTlasIdx];
+
+    selectedIdx = lightTlasIdx;
+    lightSelectionPdf = lightTlasPdf;
 
     // Finally, traverse the light BLAS and get the actual triangle
-    float lightBlasPdf = 1.f;
-    int lightBlasIdx = 0;
-    int lightBlasRootNodeIdx = meshLight.bvhIdx;
+    // float lightBlasPdf = 1.f;
+    // int lightBlasIdx = 0;
+    // int lightBlasRootNodeIdx = meshLight.bvhIdx;
 
-    stochasticTraverseLBVH(optixLaunchParams.lightBlas, meshLight.bvhHeight, lightBlasRootNodeIdx,
-        si, lightBlasIdx, lightBlasPdf, rand1);
+    // stochasticTraverseLBVH(optixLaunchParams.lightBlas, meshLight.bvhHeight, lightBlasRootNodeIdx,
+    //     si, lightBlasIdx, lightBlasPdf, rand1);
 
-    selectedIdx = lightBlasIdx;
-    lightSelectionPdf = lightTlasPdf * lightBlasPdf;
+    // selectedIdx = lightBlasIdx;
+    // lightSelectionPdf = lightTlasPdf * lightBlasPdf;
 }
 
 __device__ 
@@ -528,6 +531,16 @@ vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, LCGRand& rng)
 
     vec3f color(0.f, 0.f, 0.f);
     for (int i = 0; i < selectedEnd; i++) {
+        // Flatten the convex polyhedron to a convex polygon
+        // TODO: Relax this constraint to non convex polyhedron too
+        // TODO: Use BSP to speed up calculation of silhoutte
+        MeshLight light = optixLaunchParams.meshLights[selectedIdx[i]];
+
+        // Iteratate over all triangles to get silhoutte
+        for (int j = light.triStartIdx; j < light.triStartIdx + light.triCount; j += 1) {
+          TriLight triLight = optixLaunchParams.triLights[j];
+        }
+
         color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
             optixLaunchParams.triLights[selectedIdx[i]]);
     }
@@ -705,6 +718,37 @@ vec3f ltcDirectLighingBaseline(SurfaceInteraction& si, LCGRand& rng)
     return color;
 }
 
+__device__
+vec3f colorEdges(SurfaceInteraction& si)
+{
+    vec3f p = si.p;
+    vec3f camPos = optixLaunchParams.camera.pos;
+
+    for (int i = 0; i < optixLaunchParams.numMeshLights; i += 1) {
+        int edgeStartIdx = optixLaunchParams.meshLights[i].edgeStartIdx;
+        int edgeCount = optixLaunchParams.meshLights[i].edgeCount;
+        int faceStartIdx = optixLaunchParams.meshLights[i].triStartIdx;
+        for (int j = edgeStartIdx; j < edgeStartIdx + edgeCount; j += 1) {
+           LightEdge edge = optixLaunchParams.lightEdges[j];
+           float perpDist = owl::length(owl::cross(edge.v1 - p, edge.v2 - edge.v1)) / owl::length(edge.v2 - edge.v1);
+            if (perpDist < 0.1) {
+                bool isSil = false;
+                vec3f n1 = edge.n1;
+                if (edge.adjFaceCount == 2) {
+                    vec3f n2 = edge.n2;
+                    isSil = owl::dot(n1, edge.v1 - camPos) * owl::dot(n2, edge.v2 - camPos) < 0;
+                } else {
+                    isSil = true;
+                }
+
+            return isSil ? vec3f(0, 1, 0) : vec3f(0, 0, 1);
+            }
+        }
+    }
+
+    return si.diffuse;
+}
+
 
 OPTIX_RAYGEN_PROGRAM(rayGen)()
 {
@@ -793,6 +837,12 @@ OPTIX_RAYGEN_PROGRAM(rayGen)()
             color = si.emit;
         else
             color = ltcDirectLightingLBVH(si, rng);
+    }
+    else if (optixLaunchParams.rendererType == SILHOUETTE) {
+        if (si.isLight)
+            color = colorEdges(si);
+        else
+            color = (vec3f(1) + si.n_geom) / vec3f(2);
     }
 
     if (optixLaunchParams.accumId > 0)

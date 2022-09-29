@@ -68,6 +68,9 @@ struct RenderWindow : public owl::viewer::OWLViewer
 
     std::vector<TriLight> triLightList;
     std::vector<MeshLight> meshLightList;
+    
+    // Create a list of edges in the mesh
+    std::vector<LightEdge> lightEdgeList;
 
     std::vector<LightBVH> lightBlas;
     std::vector<LightBVH> lightTlas;
@@ -273,10 +276,14 @@ void RenderWindow::initialize(Scene& scene)
 
     Model* triLights = scene.triLights;
 
+    int totalTri = 0;
+    int totalEdge = 0;
     for (auto light : triLights->meshes) {
         MeshLight meshLight;
         meshLight.flux = 0.f;
         meshLight.triIdx = this->triLightList.size();
+        meshLight.triStartIdx = totalTri;
+        meshLight.edgeStartIdx = totalEdge;
 
         int numTri = 0;
         for (auto index : light->index) {
@@ -313,7 +320,39 @@ void RenderWindow::initialize(Scene& scene)
             numTri++;
         }
 
+        int numEdges = 0;
+        for (auto edge : light->edges) {
+            LightEdge lightEdge;
+            lightEdge.adjFaces.x = edge.adjFaces[0];
+            lightEdge.n1 = triLightList[totalTri + lightEdge.adjFaces.x].normal;
+            if (edge.adjFaces.size() == 2) {
+                lightEdge.adjFaces.y = edge.adjFaces[1];
+                lightEdge.n2 = triLightList[totalTri + lightEdge.adjFaces.y].normal;
+            } else {
+                lightEdge.adjFaces.y = -1;
+            }
+            std::cout << lightEdge.adjFaces.x << " " << lightEdge.adjFaces.y << std::endl;
+            lightEdge.v1 = triLights->vertices[edge.adjVerts.first];
+            lightEdge.v2 = triLights->vertices[edge.adjVerts.second];
+            lightEdge.adjFaceCount = edge.adjFaces.size();
+            std::cout << edge.adjVerts.first << " " << edge.adjVerts.second << std::endl;
+            std::cout << lightEdge.v1 << " " << lightEdge.v2 << std::endl;
+            for (int k = 0; k < edge.adjFaces.size(); k++) {
+                std::cout << edge.adjFaces[k] << " ";
+                std::cout << triLightList[totalTri + edge.adjFaces[k]].normal << " ";
+            }
+            
+            std::cout << std::endl << "------" << std::endl;
+
+            lightEdgeList.push_back(lightEdge);
+            numEdges += 1;
+        }
+                    
+        totalTri += numTri;
+        totalEdge += numEdges;
+
         meshLight.triCount = numTri;
+        meshLight.edgeCount = numEdges;
         meshLight.cg = (meshLight.aabbMin + meshLight.aabbMax) / 2.f;
 
         // Construct BVH for the current light mesh
@@ -331,6 +370,7 @@ void RenderWindow::initialize(Scene& scene)
         meshLight.bvhIdx = rootNodeIdx;
         meshLight.bvhHeight = this->getLightBVHHeight(rootNodeIdx, this->lightBlas);
         meshLightList.push_back(meshLight);
+        std::cout << std::endl << "***********" << std::endl;
     }
 
     // Build the TLAS on light meshes (NOT on triangles)
@@ -356,6 +396,9 @@ void RenderWindow::initialize(Scene& scene)
         // The actual light triangles
         {"triLights", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, triLights)},
         {"numTriLights", OWL_INT, OWL_OFFSETOF(LaunchParams, numTriLights)},
+        // Light edges
+        {"lightEdges", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, lightEdges)},
+        {"numLightEdges", OWL_INT, OWL_OFFSETOF(LaunchParams, numLightEdges)},
         // The mesh lights
         {"meshLights", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, meshLights)},
         {"numMeshLights", OWL_INT, OWL_OFFSETOF(LaunchParams, numMeshLights)},
@@ -403,6 +446,11 @@ void RenderWindow::initialize(Scene& scene)
     OWLBuffer triLightsBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(TriLight), triLightList.size(), triLightList.data());
     owlParamsSetBuffer(this->launchParams, "triLights", triLightsBuffer);
     owlParamsSet1i(this->launchParams, "numTriLights", this->triLightList.size());
+
+    // Upload the <actual> light edge data for all area lights
+    OWLBuffer lightEdgesBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(LightEdge), lightEdgeList.size(), lightEdgeList.data());
+    owlParamsSetBuffer(this->launchParams, "lightEdges", lightEdgesBuffer);
+    owlParamsSet1i(this->launchParams, "numLightEdges", lightEdgeList.size());
 
     // Upload the mesh data for all area lights
     OWLBuffer meshLightsBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(MeshLight), meshLightList.size(), meshLightList.data());
@@ -735,7 +783,7 @@ int main(int argc, char** argv)
     bool isInteractive = false;
 
     std::string currentScene;
-    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/test_scene.json";
+    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/silhoutte_test.json";
 
     if (argc == 2)
         currentScene = std::string(argv[1]);
@@ -766,6 +814,7 @@ int main(int argc, char** argv)
         win.enableFlyMode();
         win.enableInspectMode(owl::box3f(scene.model->bounds.lower, scene.model->bounds.upper));
         win.setWorldScale(length(scene.model->bounds.span()));
+        win.setRendererType(static_cast<RendererType>(3));
 
         // ##################################################################
         // now that everything is ready: launch it ....

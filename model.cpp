@@ -163,6 +163,16 @@ Model* loadOBJ(const std::string& objFile)
     const vec3f* normal_array = (const vec3f*)attributes.normals.data();
     const vec2f* texcoord_array = (const vec2f*)attributes.texcoords.data();
 
+    for (int i = 0; i < attributes.vertices.size(); i += 3) {
+      model->vertices.push_back(
+        vec3f(
+          attributes.vertices[i],
+          attributes.vertices[i+1],
+          attributes.vertices[i+2]
+        )
+      );
+    }
+
     std::cout << "Done loading obj file - found " << shapes.size() << " shapes with " << materials.size() << " materials" << std::endl;
     std::map<std::string, int>      knownTextures;
     for (int shapeID = 0; shapeID < (int)shapes.size(); shapeID++) {
@@ -172,7 +182,9 @@ Model* loadOBJ(const std::string& objFile)
         for (auto faceMatID : shape.mesh.material_ids)
             materialIDs.insert(faceMatID);
 
-        std::map<tinyobj::index_t, int> knownVertices;
+        // Get adjacent face IDs for all edges
+        // Edge is defined by two vertex ids (lower, higher)
+        std::map<std::pair<int, int>, std::vector<int>> edgeFaces;
 
         for (int materialID : materialIDs) {
             TriangleMesh* mesh = new TriangleMesh;
@@ -183,9 +195,10 @@ Model* loadOBJ(const std::string& objFile)
                 tinyobj::index_t idx1 = shape.mesh.indices[3 * faceID + 1];
                 tinyobj::index_t idx2 = shape.mesh.indices[3 * faceID + 2];
 
-                // vec3i idx(addVertex(mesh, attributes, idx0, knownVertices),
-                //     addVertex(mesh, attributes, idx1, knownVertices),
-                //     addVertex(mesh, attributes, idx2, knownVertices));
+                // Set face for all edges
+                edgeFaces[std::make_pair(std::min(idx0.vertex_index, idx1.vertex_index), std::max(idx0.vertex_index, idx1.vertex_index))].push_back(faceID);
+                edgeFaces[std::make_pair(std::min(idx1.vertex_index, idx2.vertex_index), std::max(idx1.vertex_index, idx2.vertex_index))].push_back(faceID);
+                edgeFaces[std::make_pair(std::min(idx0.vertex_index, idx2.vertex_index), std::max(idx0.vertex_index, idx2.vertex_index))].push_back(faceID);
 
                 vec3i vidx(mesh->vertex.size(), mesh->vertex.size() + 1, mesh->vertex.size() + 2);
                 mesh->vertex.push_back(vertex_array[idx0.vertex_index]);
@@ -197,13 +210,11 @@ Model* loadOBJ(const std::string& objFile)
                 mesh->normal.push_back(normal_array[idx0.normal_index]);
                 mesh->normal.push_back(normal_array[idx1.normal_index]);
                 mesh->normal.push_back(normal_array[idx2.normal_index]);
-                // mesh->index.push_back(nidx);
 
                 vec3i tidx(mesh->texcoord.size(), mesh->texcoord.size() + 1, mesh->texcoord.size() + 2);
                 mesh->texcoord.push_back(texcoord_array[idx0.texcoord_index]);
                 mesh->texcoord.push_back(texcoord_array[idx1.texcoord_index]);
                 mesh->texcoord.push_back(texcoord_array[idx2.texcoord_index]);
-                // mesh->index.push_back(tidx);
 
                 mesh->diffuse = (const vec3f&)materials[materialID].diffuse;
                 mesh->diffuseTextureID = loadTexture(model,
@@ -218,6 +229,14 @@ Model* loadOBJ(const std::string& objFile)
                     modelDir);
 
                 mesh->emit = (const vec3f&)materials[materialID].diffuse;
+            }
+
+            // Create all edges in the mesh
+            for (auto it : edgeFaces) {
+              Edge edge;
+              edge.adjVerts = it.first;
+              edge.adjFaces = it.second;
+              mesh->edges.push_back(edge);
             }
 
             if (mesh->vertex.empty()) {

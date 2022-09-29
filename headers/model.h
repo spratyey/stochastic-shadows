@@ -30,6 +30,13 @@
 
 using namespace owl;
 
+struct Edge {
+    // ids of adjecent faces and vertices are stored
+    std::vector<int> adjFaces;
+    // std::vector<vec3> adjFaceNormals;
+    std::pair<int, int> adjVerts;
+};
+
 /*! a simple indexed triangle mesh that our sample renderer will
     render */
 struct TriangleMesh {
@@ -38,6 +45,7 @@ struct TriangleMesh {
     std::vector<vec3f> normal;
     std::vector<vec2f> texcoord;
     std::vector<vec3i> index;
+    std::vector<Edge>  edges;
 
     // material data:
     vec3f              diffuse;
@@ -70,6 +78,7 @@ struct Model {
 
     std::vector<TriangleMesh*> meshes;
     std::vector<Texture*>      textures;
+    std::vector<vec3f>         vertices;
     //! bounding box of all vertices in the model
     box3f bounds;
 };

@@ -8,6 +8,7 @@ enum RendererType {
 	DIFFUSE=0,
 	ALPHA=1,
 	NORMALS=2,
+	SILHOUETTE,
 	DIRECT_LIGHT_LSAMPLE,
 	DIRECT_LIGHT_BRDFSAMPLE,
 	DIRECT_LIGHT_MIS,
@@ -17,13 +18,14 @@ enum RendererType {
 	LTC_BASELINE,
 	LTC_LBVH_LINEAR,
 	LTC_LBVH_BST,
+	LTC_LBVH_SILHOUTTE,
 	NUM_RENDERER_TYPES
 };
 
-const char* rendererNames[NUM_RENDERER_TYPES] = {"Diffuse", "Alpha", "Normals",
+const char* rendererNames[NUM_RENDERER_TYPES] = {"Diffuse", "Alpha", "Normals", "Silhouette"
 												"Direct Light (Light)", "Direct Light (BRDF)", "Direct Light (MIS)",
 												"Direct Light (Light BVH) (Light)", "Direct Light (Light BVH) (BRDF)", "Direct Light (Light BVH) (MIS)",
-												"LTC Baseline", "LTC (Light BVH, Linear)", "LTC (Light BVH, BST)" };
+												"LTC Baseline", "LTC (Light BVH, Linear)", "LTC (Light BVH, BST)", "Debug" };
 
 __inline__ __host__
 bool CHECK_IF_LTC(RendererType t)
@@ -45,6 +47,17 @@ bool CHECK_IF_LTC(RendererType t)
 typedef RayT<0, 2> RadianceRay;
 typedef RayT<1, 2> ShadowRay;
 #endif
+
+struct LightEdge {
+  // ids of adjecent faces and vertices are stored
+  // we only support manifold meshes
+  vec2i adjFaces;
+  vec3f n1;
+  vec3f n2;
+  int adjFaceCount;
+  vec3f v1;
+  vec3f v2;
+};
 
 struct LightBVH {
 	vec3f aabbMin = vec3f(1e30f);
@@ -76,7 +89,11 @@ struct MeshLight {
 	float flux;
 
 	int triIdx;
+  	int triStartIdx;
 	int triCount;
+
+	int edgeStartIdx;
+	int edgeCount;
 
 	int bvhIdx;
 	int bvhHeight;
@@ -92,6 +109,9 @@ struct LaunchParams {
 
 	TriLight* triLights;
 	int numTriLights;
+
+  LightEdge* lightEdges;
+  int numLightEdges;
 
 	MeshLight* meshLights;
 	int numMeshLights;
