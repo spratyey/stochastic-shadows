@@ -325,24 +325,18 @@ void RenderWindow::initialize(Scene& scene)
             LightEdge lightEdge;
             lightEdge.adjFaces.x = edge.adjFaces[0];
             lightEdge.n1 = triLightList[totalTri + lightEdge.adjFaces.x].normal;
+            lightEdge.cg1 = triLightList[totalTri + lightEdge.adjFaces.x].cg;
             if (edge.adjFaces.size() == 2) {
                 lightEdge.adjFaces.y = edge.adjFaces[1];
                 lightEdge.n2 = triLightList[totalTri + lightEdge.adjFaces.y].normal;
+                lightEdge.cg2 = triLightList[totalTri + lightEdge.adjFaces.y].cg;
             } else {
                 lightEdge.adjFaces.y = -1;
             }
-            std::cout << lightEdge.adjFaces.x << " " << lightEdge.adjFaces.y << std::endl;
+
             lightEdge.v1 = triLights->vertices[edge.adjVerts.first];
             lightEdge.v2 = triLights->vertices[edge.adjVerts.second];
             lightEdge.adjFaceCount = edge.adjFaces.size();
-            std::cout << edge.adjVerts.first << " " << edge.adjVerts.second << std::endl;
-            std::cout << lightEdge.v1 << " " << lightEdge.v2 << std::endl;
-            for (int k = 0; k < edge.adjFaces.size(); k++) {
-                std::cout << edge.adjFaces[k] << " ";
-                std::cout << triLightList[totalTri + edge.adjFaces[k]].normal << " ";
-            }
-            
-            std::cout << std::endl << "------" << std::endl;
 
             lightEdgeList.push_back(lightEdge);
             numEdges += 1;
@@ -814,7 +808,7 @@ int main(int argc, char** argv)
         win.enableFlyMode();
         win.enableInspectMode(owl::box3f(scene.model->bounds.lower, scene.model->bounds.upper));
         win.setWorldScale(length(scene.model->bounds.span()));
-        win.setRendererType(static_cast<RendererType>(3));
+        win.setRendererType(static_cast<RendererType>(4));
 
         // ##################################################################
         // now that everything is ready: launch it ....

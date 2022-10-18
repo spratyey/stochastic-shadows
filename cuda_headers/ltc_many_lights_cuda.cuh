@@ -22,10 +22,10 @@ enum RendererType {
 	NUM_RENDERER_TYPES
 };
 
-const char* rendererNames[NUM_RENDERER_TYPES] = {"Diffuse", "Alpha", "Normals", "Silhouette"
+const char* rendererNames[NUM_RENDERER_TYPES] = {"Diffuse", "Alpha", "Normals", "Silhouette",
 												"Direct Light (Light)", "Direct Light (BRDF)", "Direct Light (MIS)",
 												"Direct Light (Light BVH) (Light)", "Direct Light (Light BVH) (BRDF)", "Direct Light (Light BVH) (MIS)",
-												"LTC Baseline", "LTC (Light BVH, Linear)", "LTC (Light BVH, BST)", "Debug" };
+												"LTC Baseline", "LTC (Light BVH, Linear)", "LTC (Light BVH, BST)", "LTC (Light BVH, Silhoutte)"};
 
 __inline__ __host__
 bool CHECK_IF_LTC(RendererType t)
@@ -57,6 +57,8 @@ struct LightEdge {
   int adjFaceCount;
   vec3f v1;
   vec3f v2;
+  vec3f cg1;
+  vec3f cg2;
 };
 
 struct LightBVH {
@@ -110,8 +112,8 @@ struct LaunchParams {
 	TriLight* triLights;
 	int numTriLights;
 
-  LightEdge* lightEdges;
-  int numLightEdges;
+	LightEdge* lightEdges;
+	int numLightEdges;
 
 	MeshLight* meshLights;
 	int numMeshLights;

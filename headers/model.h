@@ -58,6 +58,7 @@ struct TriangleMesh {
 
     // Is light?
     bool isLight{ false };
+    int lightIdx;
 };
 
 struct Texture {

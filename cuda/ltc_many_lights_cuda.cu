@@ -196,21 +196,33 @@ void selectFromLBVH(SurfaceInteraction& si, int& selectedIdx, float& lightSelect
     stochasticTraverseLBVH(optixLaunchParams.lightTlas, optixLaunchParams.lightTlasHeight, lightTlasRootNodeIdx,
         si, lightTlasIdx, lightTlasPdf, rand0);
 
-    // MeshLight meshLight = optixLaunchParams.meshLights[lightTlasIdx];
+    MeshLight meshLight = optixLaunchParams.meshLights[lightTlasIdx];
+
+    // Finally, traverse the light BLAS and get the actual triangle
+    float lightBlasPdf = 1.f;
+    int lightBlasIdx = 0;
+    int lightBlasRootNodeIdx = meshLight.bvhIdx;
+
+    stochasticTraverseLBVH(optixLaunchParams.lightBlas, meshLight.bvhHeight, lightBlasRootNodeIdx,
+        si, lightBlasIdx, lightBlasPdf, rand1);
+
+    selectedIdx = lightBlasIdx;
+    lightSelectionPdf = lightTlasPdf * lightBlasPdf;
+}
+
+__device__ 
+void selectFromLBVHSil(SurfaceInteraction& si, int& selectedIdx, float& lightSelectionPdf, vec2f rand0, vec2f rand1)
+{
+    // First, traverse the light TLAS and retrive the mesh light
+    float lightTlasPdf = 1.f;
+    int lightTlasIdx = 0;
+    int lightTlasRootNodeIdx = 0;
+
+    stochasticTraverseLBVH(optixLaunchParams.lightTlas, optixLaunchParams.lightTlasHeight, lightTlasRootNodeIdx,
+        si, lightTlasIdx, lightTlasPdf, rand0);
 
     selectedIdx = lightTlasIdx;
     lightSelectionPdf = lightTlasPdf;
-
-    // Finally, traverse the light BLAS and get the actual triangle
-    // float lightBlasPdf = 1.f;
-    // int lightBlasIdx = 0;
-    // int lightBlasRootNodeIdx = meshLight.bvhIdx;
-
-    // stochasticTraverseLBVH(optixLaunchParams.lightBlas, meshLight.bvhHeight, lightBlasRootNodeIdx,
-    //     si, lightBlasIdx, lightBlasPdf, rand1);
-
-    // selectedIdx = lightBlasIdx;
-    // lightSelectionPdf = lightTlasPdf * lightBlasPdf;
 }
 
 __device__ 
@@ -229,6 +241,21 @@ float pdfFromLBVH(SurfaceInteraction& si, vec3f point)
 }
 
 __device__
+bool shouldFlip(LightEdge edge, vec3f p) {
+    // Get front face
+    vec3f cg, n;
+    if (owl::dot(edge.n1, edge.v1 - p) < 0) {
+        cg = edge.cg1;
+        n = edge.n1;
+    } else {
+        cg = edge.cg2;
+        n = edge.n2;
+    }
+
+    return owl::dot(edge.v2 - edge.v1, owl::cross(cg - edge.v1, n)) < 0;
+}
+
+__device__
 vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3], float amplitude,
     vec3f iso_frame[3], TriLight& triLight)
 {
@@ -237,7 +264,6 @@ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_m
     vec3f lv3 = triLight.v3;
     vec3f lemit = triLight.emit;
     vec3f lnormal = triLight.normal;
-    float larea = triLight.area;
 
     // Move to origin and normalize
     lv1 = owl::normalize(lv1 - si.p);
@@ -308,6 +334,58 @@ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_m
     }
 
     vec3f color = (si.diffuse * lemit * diffuse_shading) + (amplitude * lemit * ggx_shading);
+    return color;
+}
+
+__device__
+vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3], float amplitude,
+    vec3f iso_frame[3], int selectedLightIdx)
+{
+    MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
+    int edgeStartIdx = meshLight.edgeStartIdx;
+    int edgeCount = meshLight.edgeCount;
+    vec3f diffuseShading(0, 0, 0);
+    vec3f ggxShading(0, 0, 0);
+    vec3f lemit(20, 20, 20);
+    for (int i = edgeStartIdx; i < edgeStartIdx + edgeCount; i += 1) {
+        LightEdge edge = optixLaunchParams.lightEdges[i];
+        vec3f n1 = edge.n1;
+        bool isSil;
+        if (edge.adjFaceCount == 2) {
+            vec3f n2 = edge.n2;
+            isSil = owl::dot(n1, edge.v1 - si.p) * owl::dot(n2, edge.v2 - si.p) < 0;
+        } else {
+            isSil = true;
+        }
+
+        if (isSil) {
+            bool toFlip = !shouldFlip(edge, si.p);
+            vec3f lv1 = toFlip ? edge.v2 : edge.v1;
+            vec3f lv2 = toFlip ? edge.v1 : edge.v2;
+
+            // Move to origin and normalize
+            lv1 = owl::normalize(lv1 - si.p);
+            lv2 = owl::normalize(lv2 - si.p);
+
+            // Project to upper sphere
+            lv1 = owl::normalize(apply_mat(si.to_local, lv1));
+            lv2 = owl::normalize(apply_mat(si.to_local, lv2));
+
+            lv1 = owl::normalize(apply_mat(iso_frame, lv1));
+            lv2 = owl::normalize(apply_mat(iso_frame, lv2));
+
+            // TODO: Clipping
+
+            diffuseShading += integrateEdge(lv1, lv2);
+
+            lv1 = owl::normalize(apply_mat(ltc_mat_inv, lv1));
+            lv2 = owl::normalize(apply_mat(ltc_mat_inv, lv2));
+
+            ggxShading += integrateEdge(lv1, lv2);
+        }
+    }
+
+    vec3f color = (si.diffuse * lemit * diffuseShading) + (amplitude * lemit * ggxShading);
     return color;
 }
 
@@ -531,18 +609,78 @@ vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, LCGRand& rng)
 
     vec3f color(0.f, 0.f, 0.f);
     for (int i = 0; i < selectedEnd; i++) {
-        // Flatten the convex polyhedron to a convex polygon
-        // TODO: Relax this constraint to non convex polyhedron too
-        // TODO: Use BSP to speed up calculation of silhoutte
-        MeshLight light = optixLaunchParams.meshLights[selectedIdx[i]];
-
-        // Iteratate over all triangles to get silhoutte
-        for (int j = light.triStartIdx; j < light.triStartIdx + light.triCount; j += 1) {
-          TriLight triLight = optixLaunchParams.triLights[j];
-        }
-
         color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
             optixLaunchParams.triLights[selectedIdx[i]]);
+    }
+
+    return color;
+}
+
+__device__
+vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
+{
+    vec3f normal_local(0.f, 0.f, 1.f);
+
+    vec2f rand0(lcg_randomf(rng), lcg_randomf(rng));
+    vec2f rand1(lcg_randomf(rng), lcg_randomf(rng));
+
+    // Backface
+    if (si.wo_local.z < 0.f)
+        return vec3f(0.f);
+
+    /* Analytic shading via LTCs */
+    vec3f ltc_mat[3], ltc_mat_inv[3];
+    float alpha = si.alpha;
+    float theta = sphericalTheta(si.wo_local);
+
+    float amplitude = 1.f;
+    fetchLtcMat(alpha, theta, ltc_mat, amplitude);
+    matrixInverse(ltc_mat, ltc_mat_inv);
+
+    vec3f iso_frame[3];
+
+    iso_frame[0] = si.wo_local;
+    iso_frame[0].z = 0.f;
+    iso_frame[0] = normalize(iso_frame[0]);
+    iso_frame[2] = normal_local;
+    iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
+
+    int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
+    int selectedEnd = 0;
+
+    int ridx = 0;
+    float rpdf = 0.f;
+    selectFromLBVHSil(si, ridx, rpdf, rand0, rand1);
+
+    selectedIdx[selectedEnd++] = ridx;
+
+    for (int i = 0; i < MAX_LTC_LIGHTS * 2; i++) {
+        if (selectedEnd == optixLaunchParams.numMeshLights)
+            break;
+
+        rand0 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
+        rand1 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
+
+        ridx = 0;
+        rpdf = 0.f;
+        selectFromLBVHSil(si, ridx, rpdf, rand0, rand1);
+
+        bool found = false;
+        for (int j = 0; j < selectedEnd; j++) {
+            if (selectedIdx[j] == ridx) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            selectedIdx[selectedEnd++] = ridx;
+        }
+    }
+
+    vec3f color(0.f, 0.f, 0.f);
+    for (int i = 0; i < selectedEnd; i++) {
+        color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, selectedIdx[i]);
     }
 
     return color;
@@ -719,36 +857,58 @@ vec3f ltcDirectLighingBaseline(SurfaceInteraction& si, LCGRand& rng)
 }
 
 __device__
-vec3f colorEdges(SurfaceInteraction& si)
+vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray)
 {
     vec3f p = si.p;
     vec3f camPos = optixLaunchParams.camera.pos;
+    vec3f onb[3];
+    vec3f unused[3];
+    orthonormalBasis(ray.direction, onb, unused);
 
+    int edgeIdx = -1;
+    int objIdx = -1;
     for (int i = 0; i < optixLaunchParams.numMeshLights; i += 1) {
         int edgeStartIdx = optixLaunchParams.meshLights[i].edgeStartIdx;
         int edgeCount = optixLaunchParams.meshLights[i].edgeCount;
-        int faceStartIdx = optixLaunchParams.meshLights[i].triStartIdx;
         for (int j = edgeStartIdx; j < edgeStartIdx + edgeCount; j += 1) {
-           LightEdge edge = optixLaunchParams.lightEdges[j];
-           float perpDist = owl::length(owl::cross(edge.v1 - p, edge.v2 - edge.v1)) / owl::length(edge.v2 - edge.v1);
+            LightEdge edge = optixLaunchParams.lightEdges[j];
+            float perpDist = owl::length(owl::cross(edge.v1 - p, edge.v2 - edge.v1)) / owl::length(edge.v2 - edge.v1);
             if (perpDist < 0.1) {
-                bool isSil = false;
-                vec3f n1 = edge.n1;
-                if (edge.adjFaceCount == 2) {
-                    vec3f n2 = edge.n2;
-                    isSil = owl::dot(n1, edge.v1 - camPos) * owl::dot(n2, edge.v2 - camPos) < 0;
-                } else {
-                    isSil = true;
-                }
-
-            return isSil ? vec3f(0, 1, 0) : vec3f(0, 0, 1);
+                edgeIdx = j;
+                objIdx = i;
+                break;
             }
+        }
+    }
+
+    if (edgeIdx >= 0) {
+        LightEdge edge = optixLaunchParams.lightEdges[edgeIdx];
+        bool isSil;
+        if (edge.adjFaceCount == 2) {
+            vec3f n2 = edge.n2;
+            isSil = owl::dot(edge.n1, edge.v1 - camPos) * owl::dot(edge.n2, edge.v2 - camPos) < 0;
+        } else {
+            isSil = true;
+        }
+        if (isSil) {
+            float edgeLen = owl::length(edge.v1 - edge.v2);
+            float v1Len = owl::length(edge.v1 - si.p);
+            float v2Len = owl::length(edge.v2 - si.p);
+
+            bool toFlip = shouldFlip(edge, camPos);
+
+            // Red -> v1, Green -> v2
+            vec3f c1 = toFlip ? vec3f(1, 0, 0) : vec3f(0, 1, 0);
+            vec3f c2 = vec3f(1, 1, 0) - c1;
+
+            return v1Len / edgeLen * c1 + v2Len / edgeLen * c2;
+        } else {
+            return vec3f(0, 0, 1);
         }
     }
 
     return si.diffuse;
 }
-
 
 OPTIX_RAYGEN_PROGRAM(rayGen)()
 {
@@ -840,9 +1000,15 @@ OPTIX_RAYGEN_PROGRAM(rayGen)()
     }
     else if (optixLaunchParams.rendererType == SILHOUETTE) {
         if (si.isLight)
-            color = colorEdges(si);
+            color = colorEdges(si, ray);
         else
             color = (vec3f(1) + si.n_geom) / vec3f(2);
+    }
+    else if (optixLaunchParams.rendererType == LTC_LBVH_SILHOUTTE) {
+        if (si.isLight)
+            color = si.emit;
+        else
+            color = ltcDirectLightingLBVHSil(si, rng);
     }
 
     if (optixLaunchParams.accumId > 0)
