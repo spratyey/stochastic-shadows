@@ -15,35 +15,71 @@ include_directories("precomputation")
 
 embed_ptx(
   OUTPUT_TARGET
-    ptx_code
+    ptx_code_ltc_many_lights
   PTX_LINK_LIBRARIES
     owl::owl
   SOURCES
     cuda/ltc_many_lights_cuda.cu
     
+    cuda_headers/bvh.cuh
     cuda_headers/common.cuh
     cuda_headers/frostbite.cuh
     cuda_headers/frostbite_anisotropic.cuh
-    cuda_headers/lcg_random.h
-    cuda_headers/ltc_many_lights_cuda.cuh
+    cuda_headers/hit.cuh
+    cuda_headers/ltc_utils.cuh
+    cuda_headers/polygon_utils.cuh
+    cuda_headers/utils.cuh
+)
+
+embed_ptx(
+  OUTPUT_TARGET
+    ptx_code_ltc_testbed
+  PTX_LINK_LIBRARIES
+    owl::owl
+  SOURCES
+    cuda/ltc_testbed.cu
+    
+    cuda_headers/bvh.cuh
+    cuda_headers/common.cuh
+    cuda_headers/frostbite.cuh
+    cuda_headers/frostbite_anisotropic.cuh
+    cuda_headers/hit.cuh
+    cuda_headers/renderers/ltc_lbvh_sil.cuh
     cuda_headers/ltc_utils.cuh
     cuda_headers/polygon_utils.cuh
     cuda_headers/utils.cuh
 )
 
 add_executable(ltc_many_lights 
-# Host code
-"ltc_many_lights.cpp" "scene.cpp" "model.cpp" 
-# IMGUI files
-"imgui.cpp" "imgui_demo.cpp" "imgui_draw.cpp" "imgui_impl_glfw.cpp" "imgui_impl_opengl2.cpp" "imgui_tables.cpp" 
-"imgui_widgets.cpp"
+    # Host code
+    "ltc_many_lights.cpp" "scene.cpp" "model.cpp" 
+    # IMGUI files
+    "imgui.cpp" "imgui_demo.cpp" "imgui_draw.cpp" "imgui_impl_glfw.cpp" "imgui_impl_opengl2.cpp" "imgui_tables.cpp" 
+    "imgui_widgets.cpp"
+)
+
+add_executable(ltc_testbed
+    # Host code
+    "ltc_testbed.cpp" "scene.cpp" "model.cpp" 
+    # IMGUI files
+    "imgui.cpp" "imgui_demo.cpp" "imgui_draw.cpp" "imgui_impl_glfw.cpp" "imgui_impl_opengl2.cpp" "imgui_tables.cpp" 
+    "imgui_widgets.cpp"
 )
 
 add_executable(testbed "testbed.cpp")
 
 target_link_libraries(ltc_many_lights 
-PRIVATE
-# Compiled PTX
-ptx_code
-# OWL libs
-owl::owl owl_viewer)
+    PRIVATE
+    # Compiled PTX
+    ptx_code_ltc_many_lights
+    # OWL libs
+    owl::owl owl_viewer
+ )
+
+target_link_libraries(ltc_testbed
+    PRIVATE
+    # Compiled PTX
+    ptx_code_ltc_testbed
+    # OWL libs
+    owl::owl owl_viewer
+)

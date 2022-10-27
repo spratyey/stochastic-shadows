@@ -14,7 +14,7 @@
 using namespace owl;
 
 // Compiled PTX code
-extern "C" char ltc_many_lights_cuda_ptx[];
+extern "C" char ltc_testbed_ptx[];
 
 struct RenderWindow : public owl::viewer::OWLViewer
 {
@@ -36,7 +36,6 @@ struct RenderWindow : public owl::viewer::OWLViewer
     void cameraChanged() override;
 
     void customKey(char key, const vec2i& pos) override;
-    void setRendererType(RendererType type);
 
     int getLightBVHHeight(uint32_t nodeIdx, std::vector<LightBVH>& bvh);
     float evaluateSAHForLightBVH(LightBVH& node, std::vector<TriLight>& primitives, int axis, float pos);
@@ -47,12 +46,8 @@ struct RenderWindow : public owl::viewer::OWLViewer
     template <typename T>
     void subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<T>& primitives);
     
-    RendererType rendererType;
     bool sbtDirty = true;
 
-    OWLBuffer accumBuffer{ 0 };
-    int accumId = 0;
-     
     OWLRayGen rayGen{ 0 };
     OWLMissProg missProg{ 0 };
     
@@ -83,15 +78,8 @@ struct RenderWindow : public owl::viewer::OWLViewer
 RenderWindow::RenderWindow(Scene& scene, vec2i resolution, bool interactive) 
     : owl::viewer::OWLViewer("LTC Many Lights", resolution, interactive, false)
 {
-    this->rendererType = DIRECT_LIGHT_LSAMPLE;
     this->currentScene = scene;
     this->initialize(scene);
-}
-
-void RenderWindow::setRendererType(RendererType type)
-{
-    this->rendererType = type;
-    owlParamsSet1i(this->launchParams, "rendererType", (int)this->rendererType);
 }
 
 float RenderWindow::evaluateSAHForLightBVH(LightBVH& node, std::vector<TriLight>& primitives, int axis, float pos)
@@ -262,10 +250,7 @@ void RenderWindow::initialize(Scene& scene)
 
     // Context & Module creation, accumulation buffer initialize
     context = owlContextCreate(nullptr, 1);
-    module = owlModuleCreate(context, ltc_many_lights_cuda_ptx);
-
-    accumBuffer = owlDeviceBufferCreate(context, OWL_FLOAT4, 1, nullptr);
-    owlBufferResize(accumBuffer, this->getWindowSize().x * this->getWindowSize().y);
+    module = owlModuleCreate(context, ltc_testbed_ptx);
 
     owlContextSetRayTypeCount(context, 2);
 
@@ -364,7 +349,6 @@ void RenderWindow::initialize(Scene& scene)
         meshLight.bvhIdx = rootNodeIdx;
         meshLight.bvhHeight = this->getLightBVHHeight(rootNodeIdx, this->lightBlas);
         meshLightList.push_back(meshLight);
-        std::cout << std::endl << "***********" << std::endl;
     }
 
     // Build the TLAS on light meshes (NOT on triangles)
@@ -400,10 +384,6 @@ void RenderWindow::initialize(Scene& scene)
         {"lightBlas", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, lightBlas)},
         {"lightTlas", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, lightTlas)},
         {"lightTlasHeight", OWL_INT, OWL_OFFSETOF(LaunchParams, lightTlasHeight)},
-        // All other parameters
-        {"accumBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, accumBuffer)},
-        {"accumId", OWL_INT, OWL_OFFSETOF(LaunchParams, accumId)},
-        {"rendererType", OWL_INT, OWL_OFFSETOF(LaunchParams, rendererType)},
         {"world", OWL_GROUP, OWL_OFFSETOF(LaunchParams, world)},
         {"ltc_1", OWL_TEXTURE, OWL_OFFSETOF(LaunchParams, ltc_1)},
         {"ltc_2", OWL_TEXTURE, OWL_OFFSETOF(LaunchParams, ltc_2)},
@@ -434,7 +414,6 @@ void RenderWindow::initialize(Scene& scene)
     owlParamsSetTexture(this->launchParams, "ltc_2", ltc2);
     owlParamsSetTexture(this->launchParams, "ltc_3", ltc3);
 
-    owlParamsSet1i(this->launchParams, "rendererType", (int)this->rendererType);
 
     // Upload the <actual> triangle data for all area lights
     OWLBuffer triLightsBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(TriLight), triLightList.size(), triLightList.data());
@@ -458,10 +437,6 @@ void RenderWindow::initialize(Scene& scene)
     OWLBuffer lightTlasBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(LightBVH), lightTlas.size(), lightTlas.data());
     owlParamsSetBuffer(this->launchParams, "lightTlas", lightTlasBuffer);
     owlParamsSet1i(this->launchParams, "lightTlasHeight", lightTlasHeight);
-
-    // Upload accumulation buffer and ID
-    owlParamsSet1i(this->launchParams, "accumId", this->accumId);
-    owlParamsSetBuffer(this->launchParams, "accumBuffer", this->accumBuffer);
 
     // ====================================================
     // Scene setup (scene geometry and materials)
@@ -680,15 +655,7 @@ void RenderWindow::render()
         sbtDirty = false;
     }
 
-    if (CHECK_IF_LTC(this->rendererType) && accumId >= 2) {
-        ;
-    }
-    else {
-        owlParamsSet1i(this->launchParams, "accumId", this->accumId);
-
-        owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
-        accumId++;
-    }
+    owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
 }
 
 void RenderWindow::resize(const vec2i& newSize)
@@ -696,19 +663,12 @@ void RenderWindow::resize(const vec2i& newSize)
     // Resize framebuffer, and other ops (OWL::Viewer ops)
     OWLViewer::resize(newSize);
 
-    // Resize accumulation buffer, and set to launch params
-    owlBufferResize(accumBuffer, newSize.x * newSize.y);
-    owlParamsSetBuffer(this->launchParams, "accumBuffer", this->accumBuffer);
-
     // Perform camera move i.e. set new camera parameters, and set SBT to be updated
     this->cameraChanged();
 }
 
 void RenderWindow::cameraChanged()
 {
-    // Reset accumulation buffer, to restart MC sampling
-    this->accumId = 0;
-
     const vec3f lookFrom = camera.getFrom();
     const vec3f lookAt = camera.getAt();
     const vec3f lookUp = camera.getUp();
@@ -747,14 +707,6 @@ void RenderWindow::drawUI()
     {
         ImGui::Begin("Controls", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-
-        int currentType = this->rendererType;
-        ImGui::Combo("Renderer", &currentType, rendererNames, NUM_RENDERER_TYPES, 0);
-        if (currentType != this->rendererType) {
-            this->rendererType = static_cast<RendererType>(currentType);
-            owlParamsSet1i(this->launchParams, "rendererType", currentType);
-            this->cameraChanged();
-        }
 
         float currentLerp = this->lerp;
         ImGui::SliderFloat("LERP", &currentLerp, 0.f, 1.f);
@@ -808,7 +760,6 @@ int main(int argc, char** argv)
         win.enableFlyMode();
         win.enableInspectMode(owl::box3f(scene.model->bounds.lower, scene.model->bounds.upper));
         win.setWorldScale(length(scene.model->bounds.span()));
-        win.setRendererType(static_cast<RendererType>(4));
 
         // ##################################################################
         // now that everything is ready: launch it ....
@@ -822,48 +773,34 @@ int main(int argc, char** argv)
           savePath = "output";
         }
 
-
         nlohmann::json stats;
 
-        for (auto renderer : scene.renderers) {
+        int imgName = 0;    
+        for (auto cam : scene.cameras) {
+            win.camera.setOrientation(cam.from, cam.at, cam.up, owl::viewer::toDegrees(acosf(cam.cosFovy)));
+            win.resize(resolution);
 
-            win.setRendererType(static_cast<RendererType>(renderer));
-            std::string rendererName = rendererNames[renderer];
-            
-            int imgName = 0;    
-            for (auto cam : scene.cameras) {
-                win.camera.setOrientation(cam.from, cam.at, cam.up, owl::viewer::toDegrees(acosf(cam.cosFovy)));
-                win.resize(resolution);
+            auto start = std::chrono::high_resolution_clock::now();
 
-                auto start = std::chrono::high_resolution_clock::now();
+            win.render();
 
-                win.accumId = 0;
-                // Samples should be 1 for LTC
-                int samples = (renderer > 8) ? 1 : scene.spp;
-                for (int sample = 0; sample < samples; sample++) {
-                    win.render();
-                }
+            auto finish = std::chrono::high_resolution_clock::now();
 
-                auto finish = std::chrono::high_resolution_clock::now();
+            auto milliseconds_taken = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() / 1e6;
 
-                auto milliseconds_taken = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() / 1e6;
+            std::string imgFileName = savePath + "/" + "LTC_TestBed" + "_" + std::to_string(imgName) + ".png";
+            nlohmann::json currentStats = {
+                {"image_name", imgFileName},
+                {"width", scene.imgWidth},
+                {"height", scene.imgHeight},
+                {"frametime_milliseconds", milliseconds_taken},
+                {"num_area_lights", win.triLightList.size()},
+            };
 
-                std::string imgFileName = savePath + "/" + rendererName + "_" + std::to_string(imgName) + ".png";
-                nlohmann::json currentStats = {
-                    {"image_name", imgFileName},
-                    {"spp", samples},
-                    {"width", scene.imgWidth},
-                    {"height", scene.imgHeight},
-                    {"frametime_milliseconds", milliseconds_taken},
-                    {"num_area_lights", win.triLightList.size()},
-                    {"renderer", rendererName}
-                };
+            stats.push_back(currentStats);
 
-                stats.push_back(currentStats);
-
-                win.screenShot(imgFileName);
-                imgName++;
-            }
+            win.screenShot(imgFileName);
+            imgName++;
         }
 
         std::ofstream op(savePath + "/stats.json");

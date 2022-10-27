@@ -179,3 +179,18 @@ float PowerHeuristic(int nf, float fPdf, int ng, float gPdf) {
     float f = nf * fPdf, g = ng * gPdf;
     return (f * f) / (f * f + g * g);
 }
+
+__device__
+bool shouldFlip(LightEdge edge, vec3f p) {
+    // Get front face
+    vec3f cg, n;
+    if (owl::dot(edge.n1, edge.v1 - p) < 0) {
+        cg = edge.cg1;
+        n = edge.n1;
+    } else {
+        cg = edge.cg2;
+        n = edge.n2;
+    }
+
+    return owl::dot(edge.v2 - edge.v1, owl::cross(cg - edge.v1, n)) < 0;
+}
