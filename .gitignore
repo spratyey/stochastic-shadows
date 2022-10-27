@@ -1,7 +1,8 @@
 .vs/
 .git/
 build/
-scenes/obj_files/bistro/
+scenes/obj_files/
 *.swp
 scenes.old
 compile_commands.json
+test_bf

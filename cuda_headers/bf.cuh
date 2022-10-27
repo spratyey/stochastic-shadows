@@ -6,17 +6,20 @@
 __device__
 void findIndex(int item, int intIdx[NUM_HASH], int bitIdx[NUM_HASH]) {
   uint32_t tmp;
-  // for (int j = 0; j < 32 / (NUM_HASH*NUM_LSB); j += 1) {
-  // TODO: Make this dynamic
-  uint32_t hash = murmur_hash3_mix(item, 5);
-  // Split the hash
-  for (int i = 0; i < NUM_HASH; i++) {
-    tmp = hash & ((1 << NUM_LSB) - 1);
-    intIdx[i] = tmp / NUM_BITS;
-    bitIdx[i] = tmp - (intIdx[i] * NUM_BITS);
-    hash = hash >> NUM_LSB;
+  uint32_t hash = murmur_hash3_finalize(murmur_hash3_finalize(item));
+  int hash_count = 0;
+  [[ unroll ]]
+  for (int i = 0; i < ceilf((float)(NUM_HASH*NUM_LSB) / 32); i += 1) {
+    hash = murmur_hash3_mix(hash, i);
+    // Split the hash
+    for (int j = 0; j < 32 / NUM_LSB && hash_count < NUM_HASH; j++) {
+      tmp = hash & ((1 << NUM_LSB) - 1);
+      intIdx[hash_count] = tmp / 32;
+      bitIdx[hash_count] = tmp - (intIdx[hash_count] * 32);
+      hash = hash >> NUM_LSB;
+      hash_count += 1;
+    }
   }
-  // }
 }
 
 __device__

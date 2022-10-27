@@ -1,7 +1,5 @@
 #pragma once
 
-#include <owl/common.h>
-
 // https://github.com/ospray/ospray/blob/master/ospray/math/random.ih
 struct LCGRand {
     uint32_t state;

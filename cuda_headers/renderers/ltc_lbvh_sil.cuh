@@ -7,7 +7,7 @@
 #include "ltc_utils.cuh"
 #include "lcg_random.h"
 
-// #define BLOOM 1
+#define BLOOM 1
 
 __device__
 vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
@@ -40,8 +40,6 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
 
 #ifdef BLOOM
     unsigned int bf[NUM_BITS] = { 0 };
-    initBF(bf);
-    int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
 #else
     int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
 #endif
@@ -53,10 +51,20 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
     selectFromLBVH(si, ridx, rpdf, rand0, rand1);
 #ifdef BLOOM
     insertBF(bf, ridx);
-#endif
+#else
     selectedIdx[selectedEnd++] = ridx;
+#endif
 
     vec3f color(0.f, 0.f, 0.f);
+
+#ifdef DEBUG
+    const vec2i pixelId = owl::getLaunchIndex();
+    bool print = false;
+    if (pixelId.x == 0 && pixelId.y == 0) {
+      print = true;
+    }
+#endif
+
     for (int i = 0; i < MAX_LTC_LIGHTS * 2; i++) {
         if (selectedEnd == optixLaunchParams.numMeshLights || selectedEnd == MAX_LTC_LIGHTS)
             break;
@@ -80,25 +88,29 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
         }
 #endif
 
+#ifdef DEBUG
+        if (pixelId.x == 0 && pixelId.y == 0) {
+          printf("%d %d\n", ridx, found);
+        }
+#endif 
         if (!found) {
 #ifdef BLOOM
             insertBF(bf, ridx);
-            // selectedIdx[selectedEnd++] = ridx;
             color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, optixLaunchParams.triLights[ridx]);
-            // selectedEnd++;
+            selectedEnd++;
 #else
             selectedIdx[selectedEnd++] = ridx;
 #endif
         }
     }
-    return vec3f((float)selectedEnd / (float)MAX_LTC_LIGHTS);
+//    return vec3f((float)selectedEnd / (float)MAX_LTC_LIGHTS);
 
-// #ifndef BLOOM
+#ifndef BLOOM
     for (int i = 0; i < selectedEnd; i++) {
         color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
             optixLaunchParams.triLights[selectedIdx[i]]);
     }
-// #endif
+#endif
 
     return color;
 }

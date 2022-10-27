@@ -14,9 +14,11 @@ using namespace owl;
 #define MAX_LTC_LIGHTS 20
 
 // Bloom Filter parameters
-#define NUM_HASH 4	// Number of Hash functions to use
-#define NUM_BITS 8	// Stored in unsigned int so NUM_BITS*32 is actual NUM_BITS
-#define NUM_LSB 8	// Number of bits to consider from hash
+#define NUM_HASH 4   	// Number of Hash functions to use
+#define NUM_LSB  8   	// Number of bits to consider from hash
+#define NUM_BITS 8  	// Number of integers to use for bloom filter
+
+// #define DEBUG
 
 enum RendererType {
 	DIFFUSE=0,
