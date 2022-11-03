@@ -71,6 +71,9 @@ struct RenderWindow : public owl::viewer::OWLViewer
     std::vector<LightBVH> lightTlas;
     int lightTlasHeight = 0;
 
+    // BSP for fast silhoutte calculalation
+    std::vector<LightBSP> lightBSP;
+
     // Random controls
     float lerp = 0.5f;
 };
@@ -159,31 +162,6 @@ void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bv
     if (extent.z < extent[axis]) axis = 2;
     float splitPos = bvh[nodeIdx].aabbMin[axis] + extent[axis] * 0.5f;
 
-    // int axis = -1;
-    // float splitPos = 0.f, splitCost = 1e30f;
-    // for (int a = 0; a < 3; a++) {
-    //     for (uint32_t i = bvh[nodeIdx].primIdx; i < bvh[nodeIdx].primCount; i++) {
-    //         TriLight& light = primitives[i];
-    //         float candidatePos = light.cg[axis];
-    //         float candidateCost = this->evaluateSAHForLightBVH(bvh[nodeIdx], primitives, a, candidatePos);
-    //         if (candidateCost < splitCost) {
-    //             splitCost = candidateCost;
-    //             axis = a;
-    //             splitPos = candidatePos;
-    //         }
-    //     }
-    // }
-    // 
-    // vec3f e = bvh[nodeIdx].aabbMax - bvh[nodeIdx].aabbMin;
-    // float parentArea = e.x * e.y + e.y * e.z + e.z * e.x;
-    // float parentCost = bvh[nodeIdx].primCount * parentArea;
-    // if (splitCost >= parentCost) {
-    //     for (int z = bvh[nodeIdx].primIdx; z < bvh[nodeIdx].primCount; z++) {
-    //         bvh[nodeIdx].flux += primitives[z].flux;
-    //     }
-    //     return;
-    // }
-
     int i = bvh[nodeIdx].primIdx;
     int j = i + bvh[nodeIdx].primCount - 1;
     while (i <= j) {
@@ -234,6 +212,9 @@ void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bv
     this->subdivideLightBVH<T>(bvh[nodeIdx].right, bvh, primitives);
 
     bvh[nodeIdx].flux = (bvh[bvh[nodeIdx].left].flux + bvh[bvh[nodeIdx].right].flux) / 2.0f;
+}
+
+void RenderWindow::getLightBSP() {
 }
 
 void RenderWindow::initialize(Scene& scene)
@@ -344,6 +325,11 @@ void RenderWindow::initialize(Scene& scene)
 
         this->updateLightBVHNodeBounds<TriLight>(rootNodeIdx, this->lightBlas, this->triLightList);
         this->subdivideLightBVH<TriLight>(rootNodeIdx, this->lightBlas, this->triLightList);
+
+        // Construct BSP for current light mesh
+        rootNodeIdx = this->lightBSP.size();
+        LightBSP root;
+        root.left = root.right = 0;
 
         // Finally, set current light mesh parameters and addto a global list of all light meshes
         meshLight.bvhIdx = rootNodeIdx;
@@ -729,7 +715,7 @@ int main(int argc, char** argv)
     bool isInteractive = false;
 
     std::string currentScene;
-    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/bistro.json";
+    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/silhoutte_test.json";
 
     if (argc == 2)
         currentScene = std::string(argv[1]);

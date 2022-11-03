@@ -4,21 +4,9 @@
 #include "owl/common/math/vec.h"
 #include "cuda_runtime.h"
 #include "owl/common/math/random.h"
+#include "constants.cuh"
 
 using namespace owl;
-
-// Constants
-#define PI 3.1415926f
-
-// LTC parameters
-#define MAX_LTC_LIGHTS 20
-
-// Bloom Filter parameters
-#define NUM_HASH 4   	// Number of Hash functions to use
-#define NUM_LSB  8   	// Number of bits to consider from hash
-#define NUM_BITS 8  	// Number of integers to use for bloom filter
-
-// #define DEBUG
 
 enum RendererType {
 	DIFFUSE=0,

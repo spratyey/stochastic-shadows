@@ -380,6 +380,8 @@ void RenderWindow::initialize(Scene& scene)
     this->updateLightBVHNodeBounds<MeshLight>(0, this->lightTlas, this->meshLightList);
     this->subdivideLightBVH<MeshLight>(0, this->lightTlas, this->meshLightList);
     this->lightTlasHeight = this->getLightBVHHeight(0, this->lightTlas);
+    std::cout << this-lightTlasHeight << std::endl;
+    exit(0);
 
     LOG("All light BVH built");
 
