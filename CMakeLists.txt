@@ -10,10 +10,10 @@ set(owl_dir ${PROJECT_SOURCE_DIR}/owl/)
 add_subdirectory(${owl_dir} EXCLUDE_FROM_ALL)
 
 include_directories("headers")
-include_directories("cuda_headers")
 include_directories("precomputation")
 
 file(GLOB SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
+file(GLOB CUDA_HEADERS ${PROJECT_SOURCE_DIR}/headers/cuda_headers/**/*.cuh)
 
 embed_ptx(
   OUTPUT_TARGET
@@ -23,14 +23,14 @@ embed_ptx(
   SOURCES
     cuda/ltc_many_lights_cuda.cu
     
-    cuda_headers/bvh.cuh
-    cuda_headers/common.cuh
-    cuda_headers/frostbite.cuh
-    cuda_headers/frostbite_anisotropic.cuh
-    cuda_headers/hit.cuh
-    cuda_headers/ltc_utils.cuh
-    cuda_headers/polygon_utils.cuh
-    cuda_headers/utils.cuh
+    headers/cuda_headers/bvh.cuh
+    headers/cuda_headers/common.cuh
+    headers/cuda_headers/frostbite.cuh
+    headers/cuda_headers/frostbite_anisotropic.cuh
+    headers/cuda_headers/hit.cuh
+    headers/cuda_headers/ltc_utils.cuh
+    headers/cuda_headers/polygon_utils.cuh
+    headers/cuda_headers/utils.cuh
 )
 
 embed_ptx(
@@ -41,15 +41,7 @@ embed_ptx(
   SOURCES
     cuda/ltc_testbed.cu
     
-    cuda_headers/bvh.cuh
-    cuda_headers/common.cuh
-    cuda_headers/frostbite.cuh
-    cuda_headers/frostbite_anisotropic.cuh
-    cuda_headers/hit.cuh
-    cuda_headers/renderers/ltc_lbvh_sil.cuh
-    cuda_headers/ltc_utils.cuh
-    cuda_headers/polygon_utils.cuh
-    cuda_headers/utils.cuh
+    ${CUDA_HEADERS}
 )
 
 add_executable(ltc_many_lights 

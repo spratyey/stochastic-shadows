@@ -5,7 +5,7 @@ struct LCGRand {
     uint32_t state;
 };
 
-__device__ uint32_t murmur_hash3_mix(uint32_t hash, uint32_t k)
+__inline__ __device__ uint32_t murmur_hash3_mix(uint32_t hash, uint32_t k)
 {
     const uint32_t c1 = 0xcc9e2d51;
     const uint32_t c2 = 0x1b873593;
