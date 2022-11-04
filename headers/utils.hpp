@@ -2,7 +2,7 @@
 
 #include "owl/common/math/vec.h"
 #include "utils.hpp"
-#include "cuda_headers/constants.cuh"
+#include "constants.cuh"
 
 using namespace owl;
 

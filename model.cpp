@@ -44,7 +44,7 @@ namespace std {
 /*! find vertex with given position, normal, texcoord, and return
     its vertex ID, or, if it doesn't exit, add it to the mesh, and
     its just-created index */
-int addVertex(TriangleMesh* mesh,
+int addVertex(Mesh* mesh,
     tinyobj::attrib_t& attributes,
     const tinyobj::index_t& idx,
     std::map<tinyobj::index_t, int>& knownVertices)
@@ -187,7 +187,8 @@ Model* loadOBJ(const std::string& objFile)
         std::map<std::pair<int, int>, std::vector<int>> edgeFaces;
 
         for (int materialID : materialIDs) {
-            TriangleMesh* mesh = new TriangleMesh;
+            // TODO: Put the uniqueization step in the class instead of here
+            Mesh* mesh = new Mesh;
 
             for (int faceID = 0; faceID < shape.mesh.material_ids.size(); faceID++) {
                 if (shape.mesh.material_ids[faceID] != materialID) continue;
@@ -210,6 +211,15 @@ Model* loadOBJ(const std::string& objFile)
                 mesh->normal.push_back(normal_array[idx0.normal_index]);
                 mesh->normal.push_back(normal_array[idx1.normal_index]);
                 mesh->normal.push_back(normal_array[idx2.normal_index]);
+
+                mesh->faces.push_back(Face(
+                      normal_array[idx0.normal_index],
+                      normal_array[idx1.normal_index],
+                      normal_array[idx2.normal_index],
+                      vertex_array[idx0.vertex_index],
+                      vertex_array[idx1.vertex_index],
+                      vertex_array[idx2.vertex_index]
+                    ));
 
                 vec3i tidx(mesh->texcoord.size(), mesh->texcoord.size() + 1, mesh->texcoord.size() + 2);
                 mesh->texcoord.push_back(texcoord_array[idx0.texcoord_index]);
@@ -234,8 +244,30 @@ Model* loadOBJ(const std::string& objFile)
             // Create all edges in the mesh
             for (auto it : edgeFaces) {
               Edge edge;
-              edge.adjVerts = it.first;
-              edge.adjFaces = it.second;
+              edge.adjVert1 = it.first.first;
+              edge.adjVert2 = it.first.second;
+              edge.vert1 = model->vertices[edge.adjVert1];
+              edge.vert2 = model->vertices[edge.adjVert2];
+              switch (it.second.size()) {
+                case 0:
+                  // Isolated edge
+                  edge.adjFace1 = -1;
+                  edge.adjFace2 = -1;
+                  edge.numAdjFace = 0;
+                  break;
+                case 1:
+                  // Boundary edge
+                  edge.adjFace1 = it.second[0];
+                  edge.adjFace2 = -1;
+                  edge.numAdjFace = 1;
+                  break;
+                default:
+                  // Non boundary edge (non manifold meshes not supported)
+                  edge.adjFace1 = it.second[0];
+                  edge.adjFace2 = it.second[1];
+                  edge.numAdjFace = 2;
+                  break;
+              }
               mesh->edges.push_back(edge);
             }
 

@@ -5,15 +5,16 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 project(OptixRenderer VERSION 0.1 LANGUAGES C CXX CUDA)
 
 set(OptiX_ROOT_DIR "/home/aakashkt/optix")
+set(Optix_INCLUDE "/home/aakashkt/optix/include")
 
 set(owl_dir ${PROJECT_SOURCE_DIR}/owl/)
 add_subdirectory(${owl_dir} EXCLUDE_FROM_ALL)
 
 include_directories("headers")
+include_directories("cuda_headers")
 include_directories("precomputation")
 
 file(GLOB SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
-file(GLOB CUDA_HEADERS ${PROJECT_SOURCE_DIR}/headers/cuda_headers/**/*.cuh)
 
 embed_ptx(
   OUTPUT_TARGET
@@ -22,15 +23,6 @@ embed_ptx(
     owl::owl
   SOURCES
     cuda/ltc_many_lights_cuda.cu
-    
-    headers/cuda_headers/bvh.cuh
-    headers/cuda_headers/common.cuh
-    headers/cuda_headers/frostbite.cuh
-    headers/cuda_headers/frostbite_anisotropic.cuh
-    headers/cuda_headers/hit.cuh
-    headers/cuda_headers/ltc_utils.cuh
-    headers/cuda_headers/polygon_utils.cuh
-    headers/cuda_headers/utils.cuh
 )
 
 embed_ptx(
@@ -40,8 +32,6 @@ embed_ptx(
     owl::owl
   SOURCES
     cuda/ltc_testbed.cu
-    
-    ${CUDA_HEADERS}
 )
 
 add_executable(ltc_many_lights 

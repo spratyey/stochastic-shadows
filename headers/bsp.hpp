@@ -1,7 +1,7 @@
 #pragma once
 
 #include "owl/common/math/vec.h"
-#include "cuda_headers/constants.cuh"
+#include "constants.cuh"
 #include "utils.hpp"
 #include <random>
 #include <vector>

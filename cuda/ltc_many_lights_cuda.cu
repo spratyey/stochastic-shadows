@@ -7,7 +7,7 @@
 
 #include "ltc_utils.cuh"
 #include "polygon_utils.cuh"
-#include "lcg_random.h"
+#include "lcg_random.cuh"
 
 struct BST {
     int data = -1;

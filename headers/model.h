@@ -17,49 +17,16 @@
 #pragma once
 
 #include <string>
-#include <iomanip>
-#include <iostream>
-#include <fstream>
 #include <vector>
-#include <chrono>
 #include <set>
+#include <iostream>
 
 #include "common.h"
+#include "mesh.hpp"
 #include "owl/common/math/vec.h"
 #include "owl/common/math/AffineSpace.h"
 
 using namespace owl;
-
-struct Edge {
-    // ids of adjecent faces and vertices are stored
-    std::vector<int> adjFaces;
-    // std::vector<vec3> adjFaceNormals;
-    std::pair<int, int> adjVerts;
-};
-
-/*! a simple indexed triangle mesh that our sample renderer will
-    render */
-struct TriangleMesh {
-    
-    std::vector<vec3f> vertex;
-    std::vector<vec3f> normal;
-    std::vector<vec2f> texcoord;
-    std::vector<vec3i> index;
-    std::vector<Edge>  edges;
-
-    // material data:
-    vec3f              diffuse;
-    int                diffuseTextureID{ -1 };
-
-    float              alpha;
-    int                alphaTextureID{ -1 };
-
-    vec3f emit;
-
-    // Is light?
-    bool isLight{ false };
-    int lightIdx;
-};
 
 struct Texture {
     ~Texture()
@@ -77,7 +44,7 @@ struct Model {
         for (auto mesh : meshes) delete mesh;
     }
 
-    std::vector<TriangleMesh*> meshes;
+    std::vector<Mesh *> meshes;
     std::vector<Texture*>      textures;
     std::vector<vec3f>         vertices;
     //! bounding box of all vertices in the model

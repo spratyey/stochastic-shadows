@@ -24,7 +24,7 @@ __inline__ __device__ uint32_t murmur_hash3_mix(uint32_t hash, uint32_t k)
     return hash;
 }
 
-__device__ uint32_t murmur_hash3_finalize(uint32_t hash)
+__inline__ __device__ uint32_t murmur_hash3_finalize(uint32_t hash)
 {
     hash ^= hash >> 16;
     hash *= 0x85ebca6b;
@@ -35,7 +35,7 @@ __device__ uint32_t murmur_hash3_finalize(uint32_t hash)
     return hash;
 }
 
-__device__ uint32_t lcg_random(LCGRand& rng)
+__inline__ __device__ uint32_t lcg_random(LCGRand& rng)
 {
     const uint32_t m = 1664525;
     const uint32_t n = 1013904223;
@@ -43,12 +43,12 @@ __device__ uint32_t lcg_random(LCGRand& rng)
     return rng.state;
 }
 
-__device__ float lcg_randomf(LCGRand& rng)
+__inline__ __device__ float lcg_randomf(LCGRand& rng)
 {
     return ldexp((float)lcg_random(rng), -32);
 }
 
-__device__ LCGRand get_rng(int frame_id, uint2 pixel, uint2 dims)
+__inline__ __device__ LCGRand get_rng(int frame_id, uint2 pixel, uint2 dims)
 {
     LCGRand rng;
     rng.state = murmur_hash3_mix(0, pixel.x + pixel.y * dims.x);

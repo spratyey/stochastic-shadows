@@ -5,6 +5,7 @@
 #include "cuda_runtime.h"
 #include "owl/common/math/random.h"
 #include "constants.cuh"
+#include "types.hpp"
 
 using namespace owl;
 
@@ -86,23 +87,6 @@ struct TriLight {
 
 	float flux;
 	float area;
-};
-
-struct MeshLight {
-	vec3f aabbMin = vec3f(1e30f);
-	vec3f aabbMax = vec3f(-1e30f);
-	vec3f cg;
-	float flux;
-
-	int triIdx;
-  	int triStartIdx;
-	int triCount;
-
-	int edgeStartIdx;
-	int edgeCount;
-
-	int bvhIdx;
-	int bvhHeight;
 };
 
 struct LaunchParams {

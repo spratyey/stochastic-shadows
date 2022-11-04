@@ -2,7 +2,7 @@
 #include "owl/common/math/random.h"
 #include "owlViewer/OWLViewer.h"
 
-#include "common.cuh"
+#include "cuda_headers/common.cuh"
 
 #include "scene.h"
 #include "imgui.h"
@@ -381,7 +381,6 @@ void RenderWindow::initialize(Scene& scene)
     this->subdivideLightBVH<MeshLight>(0, this->lightTlas, this->meshLightList);
     this->lightTlasHeight = this->getLightBVHHeight(0, this->lightTlas);
     std::cout << this-lightTlasHeight << std::endl;
-    exit(0);
 
     LOG("All light BVH built");
 

@@ -2,7 +2,7 @@
 #include "owl/common/math/random.h"
 #include "owlViewer/OWLViewer.h"
 
-#include "common.cuh"
+#include "cuda_headers/common.cuh"
 
 #include "scene.h"
 #include "imgui.h"

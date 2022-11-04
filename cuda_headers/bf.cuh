@@ -1,7 +1,7 @@
 #pragma once
 
-#include "common.h"
-#include "lcg_random.h"
+#include "lcg_random.cuh"
+#include "constants.cuh"
 
 __device__
 void findIndex(int item, int intIdx[NUM_HASH], int bitIdx[NUM_HASH]) {
