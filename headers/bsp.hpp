@@ -1,7 +1,7 @@
 #pragma once
 
 #include "owl/common/math/vec.h"
-#include "constants.cuh"
+#include "cuda_headers/constants.cuh"
 #include "utils.hpp"
 #include <random>
 #include <vector>
@@ -20,8 +20,7 @@ class BSP {
     std::vector<std::pair<vec3f, vec3f>> edges;
     std::vector<vec4f> planes;
     std::vector<vec3f> leaves;
-    std::vector<vec3f> planeVertices;
-    std::vector<std::pair<float, vec3f>> planeVertexAngles;
+    std::vector<std::pair<float, vec3f>> planeVertices;
     std::mt19937 gen;
     std::uniform_real_distribution<> distr;
 

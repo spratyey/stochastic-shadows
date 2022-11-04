@@ -25,17 +25,20 @@ int BSP::makeNode(std::pair<int, int> planeSpan, std::pair<int, int> edgeSpan) {
   
   int planeIndex = -1;
 
+  // Find valid planes which can cut the current cell
   for (int i = planeStart; i < planeEnd; i++) {
     vec4f plane = planes[i];
     bool isValid = testCut(plane, edgeSpan);
 
     if (isValid) {
+      // NOTE: Order of below operations is important, don't switch
       planeIndex = planes.size();
       planes.push_back(plane);
     }
   }
 
   if (planeIndex == -1) {
+    // If none, we are at leaf node
     return -makeLeaf(edgeSpan);
   } else {
     // Choose last valid plane to divide the current cell
@@ -79,8 +82,9 @@ int BSP::makeLeaf(std::pair<int, int> edgeSpan) {
   for (int i = edgeStart; i < edgeEnd; i++) {
     std::pair<vec3f, vec3f> edge = edges[i];
 
-    float weightA = distr(gen) / length(edge.first);
-    float weightB = distr(gen) / length(edge.second);
+    // TODO: Verify this weighing
+    float weightA = divideSafe(distr(gen), length(edge.first));
+    float weightB = divideSafe(distr(gen), length(edge.second));
 
     point += edge.first * weightA;
     point += edge.second * weightB;
@@ -130,7 +134,6 @@ std::pair<int, int> BSP::split(vec4f plane, std::pair<int, int> edgeSpan) {
   vec3f cutFaceCenter = vec3f(0);
 
   planeVertices.clear();
-  planeVertexAngles.clear();
 
   // Split/discard existing edges
   for (int i = edgesStart; i < edgesEnd; i++) {
@@ -151,8 +154,9 @@ std::pair<int, int> BSP::split(vec4f plane, std::pair<int, int> edgeSpan) {
 
     if (length > EPS) edges.push_back(edge);
 
-    if ((distanceA < EPS && distanceB > -EPS) || (distanceA > -EPS & distanceB < EPS)) {
-      planeVertices.push_back(intersection);
+    // Get the vertices that lie on the plane
+    if ((distanceA < EPS && distanceB > -EPS) || (distanceA > -EPS && distanceB < EPS)) {
+      planeVertices.push_back(std::make_pair(0, intersection));
       cutFaceCenter += intersection;
     }
   }
@@ -164,23 +168,23 @@ std::pair<int, int> BSP::split(vec4f plane, std::pair<int, int> edgeSpan) {
   // Sort vertices in clip plane by angle around center
   cutFaceCenter /= planeVertices.size();
 
-  vec3f up = normalize(planeVertices[0] - cutFaceCenter);
+  vec3f up = normalize(planeVertices[0].second - cutFaceCenter);
   vec3f right = cross(normalize(vec3f(plane.x, plane.y, plane.z)), up);
 
   for (int i = 0; i < planeVertices.size(); i++) {
-    planeVertexAngles.push_back(std::make_pair(pseudoAngle(up, right, planeVertices[i] - cutFaceCenter), planeVertices[i]));
+    planeVertices[i].second = pseudoAngle(up, right, planeVertices[i].second - cutFaceCenter), planeVertices[i];
   }
 
-  std::sort(planeVertexAngles.begin(), planeVertexAngles.end(), [](auto &left, auto &right) {
+  std::sort(planeVertices.begin(), planeVertices.end(), [](auto &left, auto &right) {
     return left.first < right.first;
   });
 
   // Create new edges
   std::pair<vec3f, vec3f> newEdge;
-  newEdge.first = planeVertexAngles[planeVertices.size()- 1].second;
+  newEdge.first = planeVertices[planeVertices.size()- 1].second;
 
   for (int i = 0; i < planeVertices.size(); i++) {
-    newEdge.second = planeVertexAngles[i].second;
+    newEdge.second = planeVertices[i].second;
     edges.push_back(newEdge);
     newEdge.first = newEdge.second;
   }
