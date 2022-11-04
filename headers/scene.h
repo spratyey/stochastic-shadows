@@ -2,6 +2,8 @@
 
 #include "model.h"
 #include "json.h"
+#include <string>
+#include <fstream>
 
 struct SceneCamera {
 	vec3f from;

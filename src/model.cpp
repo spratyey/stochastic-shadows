@@ -19,7 +19,7 @@
 #include "tiny_obj_loader.h"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "owl/3rdParty/stb_image/stb/stb_image.h"
+#include "stb_image/stb/stb_image.h"
 
 using namespace owl;
 

@@ -5,7 +5,7 @@
 #include "bvh.cuh"
 #include "bf.cuh"
 #include "ltc_utils.cuh"
-#include "lcg_random.h"
+#include "lcg_random.cuh"
 
 #define BLOOM 1
 

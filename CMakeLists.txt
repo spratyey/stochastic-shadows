@@ -13,6 +13,7 @@ add_subdirectory(${owl_dir} EXCLUDE_FROM_ALL)
 include_directories("headers")
 include_directories("cuda_headers")
 include_directories("precomputation")
+include_directories("owl/3rdParty")
 
 file(GLOB SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
@@ -32,25 +33,21 @@ embed_ptx(
     owl::owl
   SOURCES
     cuda/ltc_testbed.cu
+
+    # ${CUDA_HEADERS}
 )
 
 add_executable(ltc_many_lights 
-    # Host code
-    "ltc_many_lights.cpp" "scene.cpp" "model.cpp"    # IMGUI files
-    "imgui.cpp" "imgui_demo.cpp" "imgui_draw.cpp" "imgui_impl_glfw.cpp" "imgui_impl_opengl2.cpp" "imgui_tables.cpp" 
-    "imgui_widgets.cpp"
+  "ltc_many_lights.cpp"
+  ${SRC_FILES}
 )
 
 add_executable(ltc_testbed
-    # Host code
-    "ltc_testbed.cpp" ${SRC_FILES}
- 
-    # IMGUI files
-    "imgui.cpp" "imgui_demo.cpp" "imgui_draw.cpp" "imgui_impl_glfw.cpp" "imgui_impl_opengl2.cpp" "imgui_tables.cpp" 
-    "imgui_widgets.cpp"
+  "ltc_testbed.cpp"
+  ${SRC_FILES}
 )
 
-add_executable(testbed "testbed.cpp")
+# add_executable(testbed "testbed.cpp")
 
 target_link_libraries(ltc_many_lights 
     PRIVATE

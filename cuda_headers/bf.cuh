@@ -8,7 +8,7 @@ void findIndex(int item, int intIdx[NUM_HASH], int bitIdx[NUM_HASH]) {
   uint32_t tmp;
   uint32_t hash = murmur_hash3_finalize(murmur_hash3_finalize(item));
   int hash_count = 0;
-  [[ unroll ]]
+#pragma unroll
   for (int i = 0; i < ceilf((float)(NUM_HASH*NUM_LSB) / 32); i += 1) {
     hash = murmur_hash3_mix(hash, i);
     // Split the hash

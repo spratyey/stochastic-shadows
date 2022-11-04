@@ -11,6 +11,9 @@
 
 #include "ltc_isotropic.h"
 
+#include <chrono>
+#include <fstream>
+
 using namespace owl;
 
 // Compiled PTX code
@@ -70,9 +73,6 @@ struct RenderWindow : public owl::viewer::OWLViewer
     std::vector<LightBVH> lightBlas;
     std::vector<LightBVH> lightTlas;
     int lightTlasHeight = 0;
-
-    // BSP for fast silhoutte calculalation
-    std::vector<LightBSP> lightBSP;
 
     // Random controls
     float lerp = 0.5f;
@@ -214,9 +214,6 @@ void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bv
     bvh[nodeIdx].flux = (bvh[bvh[nodeIdx].left].flux + bvh[bvh[nodeIdx].right].flux) / 2.0f;
 }
 
-void RenderWindow::getLightBSP() {
-}
-
 void RenderWindow::initialize(Scene& scene)
 {
     // Initialize IMGUI
@@ -289,20 +286,20 @@ void RenderWindow::initialize(Scene& scene)
         int numEdges = 0;
         for (auto edge : light->edges) {
             LightEdge lightEdge;
-            lightEdge.adjFaces.x = edge.adjFaces[0];
+            lightEdge.adjFaces.x = edge.adjFace1;
             lightEdge.n1 = triLightList[totalTri + lightEdge.adjFaces.x].normal;
             lightEdge.cg1 = triLightList[totalTri + lightEdge.adjFaces.x].cg;
-            if (edge.adjFaces.size() == 2) {
-                lightEdge.adjFaces.y = edge.adjFaces[1];
+            if (edge.numAdjFace == 2) {
+                lightEdge.adjFaces.y = edge.adjFace2;
                 lightEdge.n2 = triLightList[totalTri + lightEdge.adjFaces.y].normal;
                 lightEdge.cg2 = triLightList[totalTri + lightEdge.adjFaces.y].cg;
             } else {
                 lightEdge.adjFaces.y = -1;
             }
 
-            lightEdge.v1 = triLights->vertices[edge.adjVerts.first];
-            lightEdge.v2 = triLights->vertices[edge.adjVerts.second];
-            lightEdge.adjFaceCount = edge.adjFaces.size();
+            lightEdge.v1 = edge.vert1;
+            lightEdge.v2 = edge.vert2;
+            lightEdge.adjFaceCount = edge.numAdjFace;
 
             lightEdgeList.push_back(lightEdge);
             numEdges += 1;
@@ -326,10 +323,6 @@ void RenderWindow::initialize(Scene& scene)
         this->updateLightBVHNodeBounds<TriLight>(rootNodeIdx, this->lightBlas, this->triLightList);
         this->subdivideLightBVH<TriLight>(rootNodeIdx, this->lightBlas, this->triLightList);
 
-        // Construct BSP for current light mesh
-        rootNodeIdx = this->lightBSP.size();
-        LightBSP root;
-        root.left = root.right = 0;
 
         // Finally, set current light mesh parameters and addto a global list of all light meshes
         meshLight.bvhIdx = rootNodeIdx;
