@@ -19,12 +19,12 @@ class BSP {
   private:
     std::vector<std::pair<vec3f, vec3f>> edges;
     std::vector<vec4f> planes;
-    std::vector<vec3f> leaves;
     std::vector<std::pair<float, vec3f>> planeVertices;
     std::mt19937 gen;
     std::uniform_real_distribution<> distr;
 
   public:
+    std::vector<vec3f> leaves;
     std::vector<Node> nodes;
     int root;
 

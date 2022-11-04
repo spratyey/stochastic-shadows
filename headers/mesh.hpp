@@ -32,6 +32,7 @@ class Mesh {
     bool isLight{ false };
     int lightIdx;
 
+  void insertEdge(Edge &edge); 
   std::vector<int> getSilhouetteEdges(vec3f point);
-  bool shouldFlip(Edge edge, vec3f point);
+  bool shouldFlip(Edge &edge, vec3f point);
 };

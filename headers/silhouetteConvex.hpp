@@ -2,6 +2,7 @@
 
 #include "types.hpp"
 #include "bsp.hpp"
+#include "mesh.hpp"
 #include "owl/common/math/vec.h"
 #include <vector>
 
@@ -10,14 +11,15 @@ using namespace owl;
 class ConvexSilhouette {
   public:
     MeshLight mesh;
+    Mesh polyhedron; 
 
     std::vector<BSPNode> nodes;
-    std::vector<uint32_t> silhouettes;
+    std::vector<int> silhouettes;
     std::vector<vec3f> vertices;
     int root;
 
-	  ConvexSilhouette(); 
-	  int makeLeaf(int index, BSP &bsp, std::vector<uint32_t> &silhouettes, std::vector<BSPNode> &nodes); 
+	  ConvexSilhouette(Mesh &polyhedron); 
+	  int makeLeaf(int index, BSP &bsp); 
     void GetNodeBuffer();
 	  void GetSilhouetteBuffer();
     void GetVertexBuffer();
