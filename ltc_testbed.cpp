@@ -708,7 +708,7 @@ int main(int argc, char** argv)
     bool isInteractive = false;
 
     std::string currentScene;
-    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/silhoutte_test.json";
+    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/test_scene.json";
 
     if (argc == 2)
         currentScene = std::string(argv[1]);

@@ -7,7 +7,10 @@ ConvexSilhouette::ConvexSilhouette(Mesh &polyhedron) : polyhedron(polyhedron) {
   }
 
   // TODO: Actually calculate bound or make it an param
-	BSP bsp(planes, vec3f(-1e6), vec3f(1e6));
+	BSP bsp(planes, vec3f(-100), vec3f(100));
+  for (auto &leaf : bsp.leaves) {
+    std::cerr << leaf.x << " " << leaf.y << " " << leaf.z << "\n";
+  }
 
 	root = bsp.root;
 	

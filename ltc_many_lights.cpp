@@ -10,6 +10,8 @@
 #include "imgui_impl_opengl2.h"
 
 #include "ltc_isotropic.h"
+#include <chrono>
+#include <fstream>
 
 using namespace owl;
 
@@ -323,20 +325,20 @@ void RenderWindow::initialize(Scene& scene)
         int numEdges = 0;
         for (auto edge : light->edges) {
             LightEdge lightEdge;
-            lightEdge.adjFaces.x = edge.adjFaces[0];
+            lightEdge.adjFaces.x = edge.adjFace1;
             lightEdge.n1 = triLightList[totalTri + lightEdge.adjFaces.x].normal;
             lightEdge.cg1 = triLightList[totalTri + lightEdge.adjFaces.x].cg;
-            if (edge.adjFaces.size() == 2) {
-                lightEdge.adjFaces.y = edge.adjFaces[1];
+            if (edge.numAdjFace == 2) {
+                lightEdge.adjFaces.y = edge.adjFace2;
                 lightEdge.n2 = triLightList[totalTri + lightEdge.adjFaces.y].normal;
                 lightEdge.cg2 = triLightList[totalTri + lightEdge.adjFaces.y].cg;
             } else {
                 lightEdge.adjFaces.y = -1;
             }
 
-            lightEdge.v1 = triLights->vertices[edge.adjVerts.first];
-            lightEdge.v2 = triLights->vertices[edge.adjVerts.second];
-            lightEdge.adjFaceCount = edge.adjFaces.size();
+            lightEdge.v1 = edge.vert1;
+            lightEdge.v2 = edge.vert2;
+            lightEdge.adjFaceCount = edge.numAdjFace;
 
             lightEdgeList.push_back(lightEdge);
             numEdges += 1;
@@ -778,7 +780,7 @@ int main(int argc, char** argv)
     bool isInteractive = false;
 
     std::string currentScene;
-    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/bistro.json";
+    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/silhoutte_test.json";
 
     if (argc == 2)
         currentScene = std::string(argv[1]);

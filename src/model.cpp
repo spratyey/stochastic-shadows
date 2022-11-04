@@ -173,14 +173,14 @@ Model* loadOBJ(const std::string& objFile)
                 mesh->normal.push_back(normal_array[idx1.normal_index]);
                 mesh->normal.push_back(normal_array[idx2.normal_index]);
 
-                mesh->faces.push_back(Face(
-                      normal_array[idx0.normal_index],
-                      normal_array[idx1.normal_index],
-                      normal_array[idx2.normal_index],
-                      vertex_array[idx0.vertex_index],
-                      vertex_array[idx1.vertex_index],
-                      vertex_array[idx2.vertex_index]
-                    ));
+                 mesh->faces.push_back(Face(
+                  normal_array[idx0.normal_index],
+                  normal_array[idx1.normal_index],
+                  normal_array[idx2.normal_index],
+                  vertex_array[idx0.vertex_index],
+                  vertex_array[idx1.vertex_index],
+                  vertex_array[idx2.vertex_index]
+                ));
 
                 vec3i tidx(mesh->texcoord.size(), mesh->texcoord.size() + 1, mesh->texcoord.size() + 2);
                 mesh->texcoord.push_back(texcoord_array[idx0.texcoord_index]);

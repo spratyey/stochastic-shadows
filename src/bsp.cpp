@@ -64,8 +64,8 @@ int BSP::makeInnerNode(std::pair<int, int> planeSpan, std::pair<int, int> edgeSp
   node.right = makeNode(planeSpan, split(vec4f(-plane.x, -plane.y, -plane.z, plane.w), edgeSpan));
 
   // TODO: Verify this works
-  edges.resize(edges.size() - edgeStart);
-  planes.resize(planes.size() - planeStart);
+  edges.resize(edgeStart);
+  planes.resize(planeStart);
 
   nodes[nodeIndex] = node;
 
@@ -79,18 +79,22 @@ int BSP::makeLeaf(std::pair<int, int> edgeSpan) {
   vec3f point = vec3f(0);
   float totalWeight = 0.0;
 
+  int count = 0;
   for (int i = edgeStart; i < edgeEnd; i++) {
     std::pair<vec3f, vec3f> edge = edges[i];
 
     // TODO: Verify this weighing
-    float weightA = divideSafe(distr(gen), length(edge.first));
-    float weightB = divideSafe(distr(gen), length(edge.second));
+    std::cerr << edge.first << " " << edge.second << std::endl;
+    float weightA = distr(gen) / length(edge.first);
+    float weightB = distr(gen) / length(edge.second);
 
-    point += edge.first * weightA;
-    point += edge.second * weightB;
+    point += weightA * edge.first;
+    point += weightB * edge.second;
+    count += 2;
 
     totalWeight += weightA + weightB;
   }
+  std::cerr << "done\n";
 
   point /= totalWeight;
 

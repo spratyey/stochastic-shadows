@@ -1,12 +1,16 @@
 #include "mesh.hpp"
 
 void Mesh::insertEdge(Edge &edge) {
-  Face f1 = faces[edge.adjFace1];
-  Face f2 = faces[edge.adjFace2];
+  if (edge.numAdjFace == 0) return;
 
+  Face f1 = faces[edge.adjFace1];
   // TODO: Fix this to work for boundary edges
-  if (dot(cross(f1.n, f2.n), edge.vert2 - edge.vert1) < 0) {
-    std::swap(edge.adjFace1, edge.adjFace2);
+  if (edge.numAdjFace == 2) {
+    Face f2 = faces[edge.adjFace2];
+
+    if (dot(cross(f1.n, f2.n), edge.vert2 - edge.vert1) < 0) {
+      std::swap(edge.adjFace1, edge.adjFace2);
+    }
   }
 
   edges.push_back(edge);
