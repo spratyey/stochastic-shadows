@@ -6,5 +6,5 @@
 
 using namespace owl;
 
-float getPlanePointDist(vec3f point, vec4f plane);
+float getPlanePointDist(vec3f &point, vec4f &plane);
 double divideSafe(double a, double b);

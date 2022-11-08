@@ -21,11 +21,15 @@ struct MeshLight {
   int triStartIdx;
 	int triCount;
 
-	int edgeStartIdx;
-	int edgeCount;
-
 	int bvhIdx;
 	int bvhHeight;
+
+  struct Span{
+    // Spans of different compacted buffers
+    // span.x -> start, span.y -> end; span.z -> size
+    vec3i silSpan;
+    vec3i edgeSpan;
+  } spans;
 };
 
 struct Edge {

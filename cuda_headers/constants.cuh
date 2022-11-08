@@ -1,3 +1,5 @@
+#pragma once
+
 // Constants
 #define PI 3.1415926f
 #define EPS 1e-6

@@ -1,3 +1,5 @@
+#pragma once 
+
 #define LOG(message)                                            \
   std::cout << OWL_TERMINAL_BLUE;                               \
   std::cout << "#LOG: " << message << std::endl;   \

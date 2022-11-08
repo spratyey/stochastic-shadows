@@ -13,13 +13,15 @@ BSP::BSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBound) {
   }
 
   leaves.push_back((minBound + maxBound) / 2);
-
-  root = makeNode(std::make_pair(0, this->planes.size()), std::make_pair(0, edges.size()));
+  
+  std::pair<int, int> planeSpan = std::make_pair(0, this->planes.size());
+  std::pair<int, int> edgeSpan = std::make_pair(0, this->planes.size());
+  root = makeNode(planeSpan, edgeSpan);
 }
 
 // Make a node and return its index in the node list. The index is positive for inner nodes and
 // negative for leaves. A leaf is created if no plane subdivides the cell further.
-int BSP::makeNode(std::pair<int, int> planeSpan, std::pair<int, int> edgeSpan) {
+int BSP::makeNode(std::pair<int, int> &planeSpan, std::pair<int, int> &edgeSpan) {
   int planeStart = planeSpan.first;
   int planeEnd = planeSpan.second;
   
@@ -45,12 +47,13 @@ int BSP::makeNode(std::pair<int, int> planeSpan, std::pair<int, int> edgeSpan) {
     vec4f bestPlane = planes[planeIndex];
     planes.erase(planes.begin() + planeIndex);
 
-    return makeInnerNode(std::make_pair(planeEnd, planes.size()), edgeSpan, bestPlane);
+    std::pair<int, int> newPlaneSpan = std::make_pair(planeEnd, planes.size());
+    return makeInnerNode(newPlaneSpan, edgeSpan, bestPlane);
   }
 }
 
 // Creates an inner node that splits the current cell at the given plane and returns its index
-int BSP::makeInnerNode(std::pair<int, int> planeSpan, std::pair<int, int> edgeSpan, vec4f plane) {
+int BSP::makeInnerNode(std::pair<int, int> &planeSpan, std::pair<int, int> &edgeSpan, vec4f &plane) {
   int planeStart = planeSpan.first;
   int planeEnd = planeSpan.second;
 
@@ -60,8 +63,11 @@ int BSP::makeInnerNode(std::pair<int, int> planeSpan, std::pair<int, int> edgeSp
   int nodeIndex = nodes.size();
   nodes.push_back(node);
 
-  node.left = makeNode(planeSpan, split(plane, edgeSpan));
-  node.right = makeNode(planeSpan, split(vec4f(-plane.x, -plane.y, -plane.z, plane.w), edgeSpan));
+  std::pair<int, int> newEdgeSpan = split(plane, edgeSpan);
+  node.left = makeNode(planeSpan, newEdgeSpan);
+  vec4f negPlane(-plane.x, -plane.y, -plane.z, plane.w);
+  newEdgeSpan = split(negPlane, edgeSpan);
+  node.right = makeNode(planeSpan, newEdgeSpan);
 
   // TODO: Verify this works
   edges.resize(edgeStart);
@@ -73,7 +79,7 @@ int BSP::makeInnerNode(std::pair<int, int> planeSpan, std::pair<int, int> edgeSp
 }
 
 // Creates a leaf and returns its index
-int BSP::makeLeaf(std::pair<int, int> edgeSpan) {
+int BSP::makeLeaf(std::pair<int, int> &edgeSpan) {
   int edgeStart = edgeSpan.first;
   int edgeEnd = edgeSpan.second;
   vec3f point = vec3f(0);
@@ -99,7 +105,7 @@ int BSP::makeLeaf(std::pair<int, int> edgeSpan) {
 }
 
 // Test if plane would result in a valid cut with parts of the cell on either side
-bool BSP::testCut(vec4f plane, std::pair<int, int> edgeSpan) {
+bool BSP::testCut(vec4f &plane, std::pair<int, int> &edgeSpan) {
   int edgesStart = edgeSpan.first;
   int edgesEnd = edgeSpan.second;
 
@@ -125,7 +131,7 @@ bool BSP::testCut(vec4f plane, std::pair<int, int> edgeSpan) {
 // 2. Create new edges in the plane by adding the edges of the convex hull of the intersections.
 //    This closes the cut faces of the convex polyhedron
 // The resulting new cell is pushed onto the edge list and its index range is returned.
-std::pair<int, int> BSP::split(vec4f plane, std::pair<int, int> edgeSpan) {
+std::pair<int, int> BSP::split(vec4f &plane, std::pair<int, int> &edgeSpan) {
   int edgesStart = edgeSpan.first;
   int edgesEnd = edgeSpan.second;
 
@@ -171,7 +177,8 @@ std::pair<int, int> BSP::split(vec4f plane, std::pair<int, int> edgeSpan) {
   vec3f right = cross(normalize(vec3f(plane.x, plane.y, plane.z)), up);
 
   for (int i = 0; i < planeVertices.size(); i++) {
-    planeVertices[i].first= pseudoAngle(up, right, planeVertices[i].second - cutFaceCenter);
+    vec3f vertVec = planeVertices[i].second - cutFaceCenter;
+    planeVertices[i].first= pseudoAngle(up, right, vertVec);
   }
 
   std::sort(planeVertices.begin(), planeVertices.end(), [](auto &left, auto &right) {
@@ -218,7 +225,7 @@ void BSP::loadCube(vec3f minBound, vec3f maxBound) {
 }
 
 // Sorting by this leads to the same order as sorting by angle
-double BSP::pseudoAngle(vec3f up, vec3f right, vec3f v) {
+double BSP::pseudoAngle(vec3f &up, vec3f &right, vec3f &v) {
   float dx = dot(right, v);
   float dy = dot(up, v);
 

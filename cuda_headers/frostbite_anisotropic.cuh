@@ -1,9 +1,14 @@
 #pragma once
 
+#include "owl/common/math/vec.h"
+#include "constants.cuh"
+
 /*
 Roughly frostbite BRDF, without fresnes and disney diffuse terms 
 Link: https://seblagarde.files.wordpress.com/2015/07/course_notes_moving_frostbite_to_pbr_v32.pdf
 */
+
+using namespace owl;
 
 __device__
 vec3f fresnel_schlick(vec3f fresnel_0, vec3f fresnel_90, float cos_theta) {

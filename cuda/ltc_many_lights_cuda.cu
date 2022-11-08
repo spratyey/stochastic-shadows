@@ -519,8 +519,8 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray)
 
     int edgeIdx = -1;
     for (int i = 0; i < optixLaunchParams.numMeshLights; i += 1) {
-        int edgeStartIdx = optixLaunchParams.meshLights[i].edgeStartIdx;
-        int edgeCount = optixLaunchParams.meshLights[i].edgeCount;
+        int edgeStartIdx = optixLaunchParams.meshLights[i].spans.edgeSpan.x;
+        int edgeCount = optixLaunchParams.meshLights[i].spans.edgeSpan.z;
         for (int j = edgeStartIdx; j < edgeStartIdx + edgeCount; j += 1) {
             LightEdge edge = optixLaunchParams.lightEdges[j];
             float perpDist = owl::length(owl::cross(edge.v1 - p, edge.v2 - edge.v1)) / owl::length(edge.v2 - edge.v1);

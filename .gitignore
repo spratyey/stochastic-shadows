@@ -7,3 +7,5 @@ scenes.old
 compile_commands.json
 test_bf
 .cache
+*.blend
+*.blend1

@@ -112,12 +112,12 @@ vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f lt
     vec3f iso_frame[3], int selectedLightIdx)
 {
     MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
-    int edgeStartIdx = meshLight.edgeStartIdx;
-    int edgeCount = meshLight.edgeCount;
+    int edgeStartIdx = meshLight.spans.edgeSpan.x;
+    int edgeEndIdx = meshLight.spans.edgeSpan.y;
     vec3f diffuseShading(0, 0, 0);
     vec3f ggxShading(0, 0, 0);
     vec3f lemit(20, 20, 20);
-    for (int i = edgeStartIdx; i < edgeStartIdx + edgeCount; i += 1) {
+    for (int i = edgeStartIdx; i < edgeEndIdx; i += 1) {
         LightEdge edge = optixLaunchParams.lightEdges[i];
         vec3f n1 = edge.n1;
         bool isSil;

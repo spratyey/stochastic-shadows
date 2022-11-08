@@ -27,11 +27,6 @@ enum RendererType {
 	NUM_RENDERER_TYPES
 };
 
-const char* rendererNames[NUM_RENDERER_TYPES] = {"Diffuse", "Alpha", "Normals", "Silhouette",
-												"Direct Light (Light)", "Direct Light (BRDF)", "Direct Light (MIS)",
-												"Direct Light (Light BVH) (Light)", "Direct Light (Light BVH) (BRDF)", "Direct Light (Light BVH) (MIS)",
-												"LTC Baseline", "LTC (Light BVH, Linear)", "LTC (Light BVH, BST)", "LTC (Light BVH, Silhoutte)"};
-
 __inline__ __host__
 bool CHECK_IF_LTC(RendererType t)
 {
@@ -110,6 +105,9 @@ struct LaunchParams {
 	LightBVH* lightTlas;
 	int lightTlasHeight;
 
+	int *silhouettes;
+	BSPNode *bsp;
+
 	struct {
 		vec3f pos;
 		vec3f dir_00;
@@ -120,7 +118,9 @@ struct LaunchParams {
 	float lerp;
 };
 
+#ifdef __CUDA_ARCH__
 __constant__ LaunchParams optixLaunchParams;
+#endif
 
 struct RayGenData {
 	uint32_t* frameBuffer;

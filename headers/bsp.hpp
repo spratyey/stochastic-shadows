@@ -30,12 +30,12 @@ class BSP {
 
     BSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBound);
 
-    int makeNode(std::pair<int, int> planeSpan, std::pair<int, int> edgeSpan);
-    int makeInnerNode(std::pair<int, int> planeSpan, std::pair<int, int> edgeSpan, vec4f plane);
-    int makeLeaf(std::pair<int, int> edgeSpan);
-    std::pair<int, int> split(vec4f plane, std::pair<int, int> edgeSpan);
-    bool testCut(vec4f plane, std::pair<int, int> edgeSpan);
+    int makeNode(std::pair<int, int> &planeSpan, std::pair<int, int> &edgeSpan);
+    int makeInnerNode(std::pair<int, int> &planeSpan, std::pair<int, int> &edgeSpan, vec4f &plane);
+    int makeLeaf(std::pair<int, int> &edgeSpan);
+    std::pair<int, int> split(vec4f &plane, std::pair<int, int> &edgeSpan);
+    bool testCut(vec4f &plane, std::pair<int, int> &edgeSpan);
     void loadCube(vec3f min, vec3f max);
 
-	  static double pseudoAngle(vec3f up, vec3f right, vec3f v);
+	  static double pseudoAngle(vec3f &up, vec3f &right, vec3f &v);
 };

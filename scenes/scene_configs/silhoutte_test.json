@@ -1,5 +1,5 @@
 {
-  "area_lights": "/home/aakashkt/ishaan/OptixRenderer/scenes/obj_files/silhoutte_test/area_lights.obj",
+  "area_lights": "/home/aakashkt/ishaan/OptixRenderer/scenes/obj_files/silhoutte_test/area_lights_cube.obj",
   "renderers": [
     12, 13
   ],

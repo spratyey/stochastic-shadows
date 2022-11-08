@@ -1,0 +1,81 @@
+#pragma once
+
+// OWL
+#include "owl/owl.h"
+#include "owl/common/math/vec.h"
+#include "owlViewer/OWLViewer.h"
+
+// ImGui
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl2.h"
+
+#include "scene.h"
+#include "ltc_isotropic.h"
+#include "silhouetteConvex.hpp"
+
+#include "common.cuh"
+
+using namespace owl;
+
+struct RenderWindow : public owl::viewer::OWLViewer {
+    RenderWindow(Scene& scene, vec2i resolution, bool interactive, char *ptx);
+
+    void initialize(Scene& scene, char *ptx);
+
+    /*! gets called whenever the viewer needs us to re-render out widget */
+    void render() override;
+    void drawUI() override;
+    
+    // /*! window notifies us that we got resized. We HAVE to override
+    //     this to know our actual render dimensions, and get pointer
+    //     to the device frame buffer that the viewer cated for us */
+    void resize(const vec2i& newSize) override;
+    
+    // /*! this function gets called whenever any camera manipulator
+    //   updates the camera. gets called AFTER all values have been updated */
+    void cameraChanged() override;
+
+    void customKey(char key, const vec2i& pos) override;
+    void setRendererType(RendererType type);
+
+    int getLightBVHHeight(uint32_t nodeIdx, std::vector<LightBVH>& bvh);
+    float evaluateSAHForLightBVH(LightBVH& node, std::vector<TriLight>& primitives, int axis, float pos);
+
+    template <typename T> 
+    void updateLightBVHNodeBounds(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<T>& primitives);
+
+    template <typename T>
+    void subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<T>& primitives);
+    
+    bool sbtDirty = true;
+
+    OWLRayGen rayGen{ 0 };
+    OWLMissProg missProg{ 0 };
+    
+    OWLGroup world; // TLAS
+
+    OWLContext context{ 0 };
+    OWLModule module{ 0 };
+
+    OWLParams launchParams;
+
+    int accumId;
+
+    Scene currentScene;
+    std::vector<SceneCamera> recordedCameras;
+
+    std::vector<TriLight> triLightList;
+    std::vector<MeshLight> meshLightList;
+    
+    // Create a list of edges in the mesh
+    std::vector<LightEdge> lightEdgeList;
+
+    std::vector<LightBVH> lightBlas;
+    std::vector<LightBVH> lightTlas;
+    int lightTlasHeight = 0;
+
+    // Random controls
+    float lerp = 0.5f;
+
+    RendererType rendererType;
+};
