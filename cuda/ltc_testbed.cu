@@ -4,9 +4,12 @@
 #include "hit.cuh"
 #include "renderers/ltc_lbvh_sil.cuh"
 #include "renderers/sil_test.cuh"
+#include "constants.cuh"
 
 #include "lcg_random.cuh"
 #include "owl/common/math/vec.h"
+
+#define DEBUG_SIL
 
 OPTIX_RAYGEN_PROGRAM(rayGen)()
 {
@@ -34,16 +37,20 @@ OPTIX_RAYGEN_PROGRAM(rayGen)()
     if (si.hit == false) {
         color = si.diffuse;
     } else {
-        // if (si.isLight) {
-        //     color = si.emit;
-        // } else {
-        //     color = colorEdges(si, ray);
-        // }
-        if (si.isLight)
-            color = colorEdges(si, ray);
-        else
-            color = (vec3f(1) + si.n_geom) / vec3f(2);
-    }
+#ifdef DEBUG_SIL
+      if (si.isLight) {
+        color = colorEdges(si, ray);
+      } else {
+        color = (vec3f(1) + si.n_geom) / vec3f(2);
+      }
+#else
+      if (si.isLight) {
+        color = si.emit;
+      } else {
+        color = ltcDirectLightingLBVHSil(si, rng);
+      }
+#endif
+  }
 
     self.frameBuffer[fbOfs] = owl::make_rgba(color);
 }

@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <cuda.h>
-#include "cuda_headers/lcg_random.h"
+#include "cuda_headers/lcg_random.cuh"
 
 __device__
 bool insertBF(unsigned int *bf, int item, int filter_size, int num_hashes) {

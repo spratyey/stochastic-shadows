@@ -11,6 +11,8 @@
 
 #include "ltc_isotropic.h"
 
+#include "silhouetteConvex.hpp"
+
 #include <chrono>
 #include <fstream>
 
@@ -247,6 +249,8 @@ void RenderWindow::initialize(Scene& scene)
         meshLight.triIdx = this->triLightList.size();
         meshLight.triStartIdx = totalTri;
         meshLight.edgeStartIdx = totalEdge;
+
+        // ConvexSilhouette silhouette(*light);
 
         int numTri = 0;
         for (auto index : light->index) {
@@ -708,7 +712,7 @@ int main(int argc, char** argv)
     bool isInteractive = false;
 
     std::string currentScene;
-    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/test_scene.json";
+    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/silhoutte_test.json";
 
     if (argc == 2)
         currentScene = std::string(argv[1]);

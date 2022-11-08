@@ -1,7 +1,7 @@
 #include "utils.hpp"
 
 float getPlanePointDist(vec3f point, vec4f plane) {
-  float dist = point.x * plane.x + point.y + plane.y + point.z * plane.z + 1;
+  float dist = point.x * plane.x + point.y + plane.y + point.z * plane.z + plane.w;
   vec3f abc = vec3f(plane.x, plane.y, plane.z);
   return dist / length(abc);
 }

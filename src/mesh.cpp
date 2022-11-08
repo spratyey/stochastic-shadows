@@ -37,7 +37,12 @@ std::vector<int> Mesh::getSilhouetteEdges(vec3f point) {
 
     if (isSil) {
       // Negetive index denotes need to flip
-      silEdges.push_back(visible1 ? 1 : -1 * i);
+      // For index 0, edges.size() denotes need to flip
+      if (i == 0 && !visible1) {
+        silEdges.push_back(edges.size());
+      } else {
+        silEdges.push_back((visible1 ? 1 : -1) * i);
+      }
     }
   }
 

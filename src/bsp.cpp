@@ -79,22 +79,17 @@ int BSP::makeLeaf(std::pair<int, int> edgeSpan) {
   vec3f point = vec3f(0);
   float totalWeight = 0.0;
 
-  int count = 0;
   for (int i = edgeStart; i < edgeEnd; i++) {
     std::pair<vec3f, vec3f> edge = edges[i];
 
-    // TODO: Verify this weighing
-    std::cerr << edge.first << " " << edge.second << std::endl;
     float weightA = distr(gen) / length(edge.first);
     float weightB = distr(gen) / length(edge.second);
 
     point += weightA * edge.first;
     point += weightB * edge.second;
-    count += 2;
 
     totalWeight += weightA + weightB;
   }
-  std::cerr << "done\n";
 
   point /= totalWeight;
 
@@ -176,7 +171,7 @@ std::pair<int, int> BSP::split(vec4f plane, std::pair<int, int> edgeSpan) {
   vec3f right = cross(normalize(vec3f(plane.x, plane.y, plane.z)), up);
 
   for (int i = 0; i < planeVertices.size(); i++) {
-    planeVertices[i].second = pseudoAngle(up, right, planeVertices[i].second - cutFaceCenter), planeVertices[i];
+    planeVertices[i].first= pseudoAngle(up, right, planeVertices[i].second - cutFaceCenter);
   }
 
   std::sort(planeVertices.begin(), planeVertices.end(), [](auto &left, auto &right) {

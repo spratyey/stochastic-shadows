@@ -103,7 +103,7 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
 #endif
         }
     }
-//    return vec3f((float)selectedEnd / (float)MAX_LTC_LIGHTS);
+    // return vec3f((float)selectedEnd / (float)MAX_LTC_LIGHTS);
 
 #ifndef BLOOM
     for (int i = 0; i < selectedEnd; i++) {
