@@ -2,6 +2,7 @@
 
 #include "types.hpp"
 #include "bsp.hpp"
+#include "twoPassBsp.hpp"
 #include "mesh.hpp"
 #include "owl/common/math/vec.h"
 #include <vector>

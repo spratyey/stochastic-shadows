@@ -67,7 +67,7 @@ int main(int argc, char** argv)
             win.resize(resolution);
 
             auto start = std::chrono::high_resolution_clock::now();
-
+            exit(0);
             win.render();
 
             auto finish = std::chrono::high_resolution_clock::now();

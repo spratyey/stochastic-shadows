@@ -4,9 +4,7 @@ ConvexSilhouette::ConvexSilhouette(Mesh &polyhedron) : polyhedron(polyhedron) {
 	std::vector<vec4f> planes;
 	for (Face &face : polyhedron.faces) {
         planes.push_back(face.plane);
-        std::cerr << face.plane << " ";
 	}
-    std::cerr << "\n";
 
 	// TODO: Actually calculate bound or make it an param
 	BSP bsp(planes, vec3f(-100), vec3f(100));
@@ -38,8 +36,6 @@ ConvexSilhouette::ConvexSilhouette(Mesh &polyhedron) : polyhedron(polyhedron) {
 		nodes[i] = node;
 	}
 
-    std::cout << leafCnt << "\n";
-    std::cout << nodes.size() << "\n";
     // TODO
 	// this.vertices = polyhedron.vertices.Select(v => (Vector3)v).ToArray();
 }

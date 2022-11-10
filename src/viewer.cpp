@@ -185,6 +185,7 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
         meshLight.bspRoot = silhouette.root;
         silhouettes.insert(silhouettes.end(), silhouette.silhouettes.begin(), silhouette.silhouettes.end());
         bspNodes.insert(bspNodes.end(), silhouette.nodes.begin(), silhouette.nodes.end());
+        std::cout << silhouette.nodes.size() << std::endl;
 
         int numTri = 0;
         for (auto index : light->index) {
