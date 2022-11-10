@@ -44,7 +44,7 @@ int ConvexSilhouette::makeLeaf(int index, BSP &bsp) {
     std::vector<int> silhouette = polyhedron.getSilhouetteEdges(bsp.leaves[index]);
 
 	int left = silhouettes.size();
-	silhouettes.insert(silhouettes.end(), silhouette.end(), silhouette.end());
+	silhouettes.insert(silhouettes.end(), silhouette.begin(), silhouette.end());
 	int right = silhouettes.size();
 
 	nodes.push_back(BSPNode { vec4f(0), vec2i(left, right),  -1, -1});

@@ -10,7 +10,6 @@ RenderWindow::RenderWindow(Scene& scene, vec2i resolution, bool interactive, cha
 void RenderWindow::setRendererType(RendererType type)
 {
     this->rendererType = type;
-    owlParamsSet1i(this->launchParams, "rendererType", (int)this->rendererType);
 }
 
 float RenderWindow::evaluateSAHForLightBVH(LightBVH& node, std::vector<TriLight>& primitives, int axis, float pos)
@@ -326,6 +325,9 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
         {"accumBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, accumBuffer)},
         // Random controls
         {"lerp", OWL_FLOAT, OWL_OFFSETOF(LaunchParams, lerp)},
+        // Mouse variables
+        {"clicked", OWL_BOOL, OWL_OFFSETOF(LaunchParams, clicked)},
+        {"pixelId", OWL_INT2, OWL_OFFSETOF(LaunchParams, pixelId)},
         {nullptr}
     };
 
@@ -333,6 +335,7 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
 
     // Random controls
     owlParamsSet1f(this->launchParams, "lerp", this->lerp);
+    owlParamsSet1b(this->launchParams, "clicked", false);
 
     // Set LTC matrices (8x8, since only isotropic)
     OWLTexture ltc1 = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA32F, 8, 8, ltc_iso_1,
@@ -547,7 +550,10 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
 }
 
 void RenderWindow::mouseButtonLeft(const vec2i &where, bool pressed) {
-    std::cerr << where.x << " " << where.y << " " << pressed << "\n";
+    if (pressed == true) {
+        owlParamsSet1b(this->launchParams, "clicked", true);
+        owlParamsSet2i(this->launchParams, "pixelId", (const owl2i&)where);
+    }
 }
 
 void RenderWindow::customKey(char key, const vec2i& pos)
@@ -600,6 +606,7 @@ void RenderWindow::render()
     }
 
     owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
+    owlParamsSet1b(this->launchParams, "clicked", false);
 }
 
 void RenderWindow::resize(const vec2i& newSize)

@@ -32,18 +32,20 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
 
     vec3f color(0.f);
 
+    bool shouldPrint = false;
+    if (optixLaunchParams.pixelId.x == pixelId.x && optixLaunchParams.pixelId.y == self.frameBufferSize.y - pixelId.y && optixLaunchParams.clicked) {
+        printf("%d %d %d %f %f %f\n", pixelId.x, pixelId.y, si.isLight, si.n_geom.z, screen.u, screen.v);
+        shouldPrint = true;
+    }
     if (si.hit == false) {
         color = si.diffuse;
     } else {
 #ifdef DEBUG_SIL
         if (si.isLight) {
-            color = colorEdges(si, ray);
+            color = colorEdges(si, ray, shouldPrint);
         } else {
             color = (vec3f(1) + si.n_geom) / vec3f(2);
         }
-        // if (pixelId.x > 374 && pixelId.y < 550) {
-        //     color = vec3f(1,0, 0);
-        // }
 #else
         if (si.isLight) {
             color = si.emit;

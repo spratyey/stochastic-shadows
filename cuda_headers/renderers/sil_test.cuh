@@ -9,7 +9,7 @@
 using namespace owl;
 
 __device__
-vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray) {
+vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray, bool shouldPrint) {
   vec3f p = si.p;
   vec3f camPos = optixLaunchParams.camera.pos;
   vec3f onb[3];
@@ -18,11 +18,6 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray) {
 
   // 374, 186
   const vec2i pixelId = owl::getLaunchIndex();
-  bool toPause = false;
-  // printf("%d %d\n", pixelId.x, pixelId.y);
-  if (pixelId.x == 911 && pixelId.y == 590) {
-    toPause = true;
-  }
 
   int edgeIdx = -1;
   int lightIdx = -1;
@@ -40,7 +35,7 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray) {
     }
   }
 
-  if (toPause) printf("%d %d\n", edgeIdx, lightIdx);
+  if (shouldPrint) printf("%d %d\n", edgeIdx, lightIdx);
 
   if (lightIdx >= 0) {
     bool isSil = false;
@@ -49,14 +44,14 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray) {
 #ifdef BSP_SIL
     BSPNode node = getSilEdges(lightIdx, camPos);
     vec2i silSpan = node.silSpan;
+    int edgeCount = optixLaunchParams.meshLights[lightIdx].spans.edgeSpan.y - optixLaunchParams.meshLights[lightIdx].spans.edgeSpan.x;
     int edgeStartIdx = optixLaunchParams.meshLights[lightIdx].spans.edgeSpan.x;
     toFlip = false;
-    if (toPause) printf("%d\n", edgeStartIdx);
-    if (toPause) printf("%d %d\n", silSpan.x, silSpan.y);
-    if (toPause) printf("%d %d\n", node.left, node.left);
+    if (shouldPrint) printf("%d\n", edgeCount);
     for (int i = silSpan.x; i < silSpan.y; i += 1) {
-      if (toPause) printf("%d ", optixLaunchParams.silhouettes[i]);
-      if (optixLaunchParams.silhouettes[i] == edgeIdx - edgeStartIdx) {
+      int silIdx = optixLaunchParams.silhouettes[i];
+      if (abs(silIdx) == edgeIdx - edgeStartIdx || silIdx - edgeCount == edgeIdx - edgeStartIdx) {
+        toFlip = silIdx < 0 || silIdx == edgeCount;
         isSil = true;
         break;
       }
