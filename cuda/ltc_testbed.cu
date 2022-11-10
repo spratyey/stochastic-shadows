@@ -41,6 +41,9 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         } else {
             color = (vec3f(1) + si.n_geom) / vec3f(2);
         }
+        // if (pixelId.x > 374 && pixelId.y < 550) {
+        //     color = vec3f(1,0, 0);
+        // }
 #else
         if (si.isLight) {
             color = si.emit;

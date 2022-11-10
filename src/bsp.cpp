@@ -8,14 +8,14 @@ BSP::BSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBound) {
 
   loadCube(minBound, maxBound);
 
-  for (auto plane : planes) {
+  for (auto &plane : planes) {
     this->planes.push_back(plane);
   }
 
   leaves.push_back((minBound + maxBound) / 2);
   
   std::pair<int, int> planeSpan = std::make_pair(0, this->planes.size());
-  std::pair<int, int> edgeSpan = std::make_pair(0, this->planes.size());
+  std::pair<int, int> edgeSpan = std::make_pair(0, this->edges.size());
   root = makeNode(planeSpan, edgeSpan);
 }
 
@@ -65,7 +65,7 @@ int BSP::makeInnerNode(std::pair<int, int> &planeSpan, std::pair<int, int> &edge
 
   std::pair<int, int> newEdgeSpan = split(plane, edgeSpan);
   node.left = makeNode(planeSpan, newEdgeSpan);
-  vec4f negPlane(-plane.x, -plane.y, -plane.z, plane.w);
+  vec4f negPlane(-plane.x, -plane.y, -plane.z, -plane.w);
   newEdgeSpan = split(negPlane, edgeSpan);
   node.right = makeNode(planeSpan, newEdgeSpan);
 
@@ -94,7 +94,7 @@ int BSP::makeLeaf(std::pair<int, int> &edgeSpan) {
     point += weightA * edge.first;
     point += weightB * edge.second;
 
-    totalWeight += weightA + weightB;
+    totalWeight += (weightA + weightB);
   }
 
   point /= totalWeight;
@@ -155,9 +155,9 @@ std::pair<int, int> BSP::split(vec4f &plane, std::pair<int, int> &edgeSpan) {
     if (distanceA < 0) edge.first = intersection;
     if (distanceB < 0) edge.second = intersection;
 
-    float length = owl::length(edge.first - edge.second);
+    float len = length(edge.first - edge.second);
 
-    if (length > EPS) edges.push_back(edge);
+    if (len > EPS) edges.push_back(edge);
 
     // Get the vertices that lie on the plane
     if ((distanceA < EPS && distanceB > -EPS) || (distanceA > -EPS && distanceB < EPS)) {
@@ -167,6 +167,7 @@ std::pair<int, int> BSP::split(vec4f &plane, std::pair<int, int> &edgeSpan) {
   }
 
   if (planeVertices.size() < 3) {
+    std::cerr << "Idk what happens here\n";
     return std::make_pair(newEdgesStart, edges.size());
   }
 

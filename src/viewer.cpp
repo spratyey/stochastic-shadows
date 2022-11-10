@@ -546,6 +546,10 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
     owlBuildSBT(context);
 }
 
+void RenderWindow::mouseButtonLeft(const vec2i &where, bool pressed) {
+    std::cerr << where.x << " " << where.y << " " << pressed << "\n";
+}
+
 void RenderWindow::customKey(char key, const vec2i& pos)
 {
     if (key == '1' || key == '!') {

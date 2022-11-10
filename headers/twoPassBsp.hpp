@@ -7,7 +7,7 @@ using namespace owl;
 
 class TwoPassBSP {
   private:
-    std::vector<std::pair<vec3f, vec3f>> points;
+    std::vector<std::pair<int, vec3f>> points;
     std::vector<vec4f> planes;
 
   public:

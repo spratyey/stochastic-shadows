@@ -16,7 +16,7 @@ int main(int argc, char** argv)
     bool isInteractive = false;
 
     std::string currentScene;
-    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/silhoutte_test.json";
+    std::string defaultScene = "/home/cvit/ishaan/OptixRenderer/scenes/scene_configs/silhoutte_test.json";
 
     if (argc == 2)
         currentScene = std::string(argv[1]);
@@ -67,7 +67,7 @@ int main(int argc, char** argv)
             win.resize(resolution);
 
             auto start = std::chrono::high_resolution_clock::now();
-            exit(0);
+            // exit(0);
             win.render();
 
             auto finish = std::chrono::high_resolution_clock::now();

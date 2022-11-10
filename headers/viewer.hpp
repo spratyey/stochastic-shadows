@@ -35,6 +35,7 @@ struct RenderWindow : public owl::viewer::OWLViewer {
     //   updates the camera. gets called AFTER all values have been updated */
     void cameraChanged() override;
 
+    void mouseButtonLeft(const vec2i &where, bool pressed) override;
     void customKey(char key, const vec2i& pos) override;
     void setRendererType(RendererType type);
 

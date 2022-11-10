@@ -206,7 +206,7 @@ bool shouldFlip(LightEdge edge, vec3f p) {
 // Functions used by both host and device
 __device__
 inline float getPlanePointDist(vec3f &point, vec4f &plane) {
-    float dist = point.x * plane.x + point.y + plane.y + point.z * plane.z + plane.w;
+    float dist = point.x * plane.x + point.y * plane.y + point.z * plane.z + plane.w;
     vec3f abc = vec3f(plane.x, plane.y, plane.z);
     return dist / length(abc);
 }

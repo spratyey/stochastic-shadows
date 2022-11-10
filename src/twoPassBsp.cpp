@@ -1,21 +1,26 @@
 #include "twoPassBsp.hpp"
 
-TwoPassBSP::TwoPassBSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBound) {
-  BSP firstPass = BSP(planes, minBound, maxBound);
-  for (auto plane : planes) {
-    this->planes.push_back(plane);
-  }
-
-  leaves.push_back(vec3f(0));
-  
-  std::pair<int, int> planeSpan = std::make_pair(0, this->planes.size());
-  std::pair<int, int> edgeSpan = std::make_pair(0, this->planes.size());
-  root = makeNode(planeSpan, edgeSpan);
-}
-
-// Make a node and return its index in the node list. The index is positive for inner nodes and
-// negative for leaves. A leaf is created if no plane subdivides the cell further.
-// int BSP::makeNode(std::pair<int, int> &planeSpan, std::pair<int, int> &edgeSpan) {
+// TwoPassBSP::TwoPassBSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBound) {
+//     BSP firstPass = BSP(planes, minBound, maxBound);
+//     for (auto &plane : planes) {
+//         this->planes.push_back(plane);
+//     }
+// 
+//     leaves.push_back(vec3f(0));
+// 
+//     // TODO: Ensure i = 1 is correct
+//     for (int i = 1; i < firstPass.leaves.size(); i += 1) {
+//         points.push_back(std::make_pair(i, firstPass.leaves[i]));
+//     }
+// 
+//     std::pair<int, int> planeSpan = std::make_pair(0, this->planes.size());
+//     std::pair<int, int> pointSpan = std::make_pair(0, this->points.size());
+//     root = makeNode(planeSpan, pointSpan);
+// }
+// 
+// // Make a node and return its index in the node list. The index is positive for inner nodes and
+// // negative for leaves. A leaf is created if no plane subdivides the cell further.
+// int TwoPassBSP::makeNode(std::pair<int, int> &planeSpan, std::pair<int, int> &pointSpan) {
 //   int planeStart = planeSpan.first;
 //   int planeEnd = planeSpan.second;
 //   
@@ -24,7 +29,7 @@ TwoPassBSP::TwoPassBSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBoun
 //   // Find valid planes which can cut the current cell
 //   for (int i = planeStart; i < planeEnd; i++) {
 //     vec4f plane = planes[i];
-//     bool isValid = testCut(plane, edgeSpan);
+//     bool isValid = testCut(plane, pointSpan);
 // 
 //     if (isValid) {
 //       // NOTE: Order of below operations is important, don't switch
@@ -35,14 +40,14 @@ TwoPassBSP::TwoPassBSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBoun
 // 
 //   if (planeIndex == -1) {
 //     // If none, we are at leaf node
-//     return -makeLeaf(edgeSpan);
+//     return -makeLeaf(pointSpan);
 //   } else {
 //     // Choose last valid plane to divide the current cell
 //     vec4f bestPlane = planes[planeIndex];
 //     planes.erase(planes.begin() + planeIndex);
 // 
 //     std::pair<int, int> newPlaneSpan = std::make_pair(planeEnd, planes.size());
-//     return makeInnerNode(newPlaneSpan, edgeSpan, bestPlane);
+//     return makeInnerNode(newPlaneSpan, pointSpan, bestPlane);
 //   }
 // }
 // 

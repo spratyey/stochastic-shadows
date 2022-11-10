@@ -16,6 +16,14 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray) {
   vec3f unused[3];
   orthonormalBasis(ray.direction, onb, unused);
 
+  // 374, 186
+  const vec2i pixelId = owl::getLaunchIndex();
+  bool toPause = false;
+  // printf("%d %d\n", pixelId.x, pixelId.y);
+  if (pixelId.x == 911 && pixelId.y == 590) {
+    toPause = true;
+  }
+
   int edgeIdx = -1;
   int lightIdx = -1;
   for (int i = 0; i < optixLaunchParams.numMeshLights; i += 1) {
@@ -32,6 +40,8 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray) {
     }
   }
 
+  if (toPause) printf("%d %d\n", edgeIdx, lightIdx);
+
   if (lightIdx >= 0) {
     bool isSil = false;
     bool toFlip;
@@ -41,8 +51,12 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray) {
     vec2i silSpan = node.silSpan;
     int edgeStartIdx = optixLaunchParams.meshLights[lightIdx].spans.edgeSpan.x;
     toFlip = false;
+    if (toPause) printf("%d\n", edgeStartIdx);
+    if (toPause) printf("%d %d\n", silSpan.x, silSpan.y);
+    if (toPause) printf("%d %d\n", node.left, node.left);
     for (int i = silSpan.x; i < silSpan.y; i += 1) {
-      if (i == edgeIdx - edgeStartIdx) {
+      if (toPause) printf("%d ", optixLaunchParams.silhouettes[i]);
+      if (optixLaunchParams.silhouettes[i] == edgeIdx - edgeStartIdx) {
         isSil = true;
         break;
       }

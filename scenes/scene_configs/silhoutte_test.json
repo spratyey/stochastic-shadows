@@ -1,5 +1,5 @@
 {
-  "area_lights": "/home/aakashkt/ishaan/OptixRenderer/scenes/obj_files/silhoutte_test/area_lights_cube.obj",
+  "area_lights": "/home/cvit/ishaan/OptixRenderer/scenes/obj_files/silhoutte_test/area_lights_cube.obj",
   "renderers": [
     12, 13
   ],
@@ -20,9 +20,9 @@
     }
   ],
   "height": 720,
-  "render_output": "/home/aakashkt/ishaan/OptixRenderer/scenes/test_scene.png",
-  "render_stats": "/home/aakashkt/ishaan/OptixRenderer/scenes/test_scene.json",
+  "render_output": "/home/cvit/ishaan/OptixRenderer/scenes/test_scene.png",
+  "render_stats": "/home/cvit/ishaan/OptixRenderer/scenes/test_scene.json",
   "spp": 10,
-  "surface_geometry": "/home/aakashkt/ishaan/OptixRenderer/scenes/obj_files/silhoutte_test/scene.obj",
+  "surface_geometry": "/home/cvit/ishaan/OptixRenderer/scenes/obj_files/silhoutte_test/scene.obj",
   "width": 1280
 }
