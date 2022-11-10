@@ -1,11 +1,15 @@
 #pragma once
 
+#include "owl/common/math/vec.h"
 #include "common.cuh"
 #include "utils.cuh"
+#include "sil_utils.cuh"
+#include "constants.cuh"
+
+using namespace owl;
 
 __device__
-vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray)
-{
+vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray) {
   vec3f p = si.p;
   vec3f camPos = optixLaunchParams.camera.pos;
   vec3f onb[3];
@@ -13,33 +17,53 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray)
   orthonormalBasis(ray.direction, onb, unused);
 
   int edgeIdx = -1;
+  int lightIdx = -1;
   for (int i = 0; i < optixLaunchParams.numMeshLights; i += 1) {
     int edgeStartIdx = optixLaunchParams.meshLights[i].spans.edgeSpan.x;
     int edgeEndIdx = optixLaunchParams.meshLights[i].spans.edgeSpan.y;
     for (int j = edgeStartIdx; j < edgeEndIdx; j += 1) {
       LightEdge edge = optixLaunchParams.lightEdges[j];
-      float perpDist = owl::length(owl::cross(edge.v1 - p, edge.v2 - edge.v1)) / owl::length(edge.v2 - edge.v1);
+      float perpDist = length(cross(edge.v1 - p, edge.v2 - edge.v1)) / length(edge.v2 - edge.v1);
       if (perpDist < 0.1) {
         edgeIdx = j;
+        lightIdx = i;
         break;
       }
     }
   }
 
-  if (edgeIdx >= 0) {
+  if (lightIdx >= 0) {
+    bool isSil = false;
+    bool toFlip;
     LightEdge edge = optixLaunchParams.lightEdges[edgeIdx];
-    bool isSil;
+#ifdef BSP_SIL
+    BSPNode node = getSilEdges(lightIdx, camPos);
+    vec2i silSpan = node.silSpan;
+    int edgeStartIdx = optixLaunchParams.meshLights[lightIdx].spans.edgeSpan.x;
+    toFlip = false;
+    for (int i = silSpan.x; i < silSpan.y; i += 1) {
+      if (i == edgeIdx - edgeStartIdx) {
+        isSil = true;
+        break;
+      }
+    }
+#else
     if (edge.adjFaceCount == 2) {
       isSil = owl::dot(edge.n1, edge.v1 - camPos) * owl::dot(edge.n2, edge.v2 - camPos) < 0;
     } else {
       isSil = true;
     }
+
+    if (isSil) {
+      bool toFlip = shouldFlip(edge, camPos);
+    }
+#endif
+
     if (isSil) {
       float edgeLen = owl::length(edge.v1 - edge.v2);
       float v1Len = owl::length(edge.v1 - si.p);
       float v2Len = owl::length(edge.v2 - si.p);
 
-      bool toFlip = shouldFlip(edge, camPos);
 
       // Red -> v1, Green -> v2
       vec3f c1 = toFlip ? vec3f(1, 0, 0) : vec3f(0, 1, 0);

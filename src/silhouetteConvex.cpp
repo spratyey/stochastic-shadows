@@ -14,12 +14,7 @@ ConvexSilhouette::ConvexSilhouette(Mesh &polyhedron) : polyhedron(polyhedron) {
 	root = bsp.root;
 
     for (auto &node : bsp.nodes) {
-    // TODO: Merge both the types
-		nodes.push_back(BSPNode {
-			node.plane,
-			node.left,
-			node.right
-		});
+		nodes.push_back(node);
 	}
 
 	// Create silhouette list and add dummy element to prevent index 0 from being used because
@@ -52,16 +47,11 @@ ConvexSilhouette::ConvexSilhouette(Mesh &polyhedron) : polyhedron(polyhedron) {
 int ConvexSilhouette::makeLeaf(int index, BSP &bsp) {
     std::vector<int> silhouette = polyhedron.getSilhouetteEdges(bsp.leaves[index]);
 
-    // for (auto &sil : silhouette) {
-    //   std::cerr << sil << " ";
-    // }
-    // std::cerr << std::endl;
-
 	int left = silhouettes.size();
 	silhouettes.insert(silhouettes.end(), silhouette.end(), silhouette.end());
 	int right = silhouettes.size();
 
-	nodes.push_back(BSPNode { left = -left, right = -right });
+	nodes.push_back(BSPNode { vec4f(0), vec2i(left, right),  -1, -1});
 
 	return nodes.size() - 1;
 }

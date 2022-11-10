@@ -1,5 +1,12 @@
 #pragma once
 
+#include "common.cuh"
+#include "owl/common/math/vec.h"
+#include "owl/common/owl-common.h"
+
+using namespace owl;
+
+#ifdef __CUDA_ARCH__
 __device__
 vec3f barycentricInterpolate(vec3f* tex, vec3i index)
 {
@@ -193,4 +200,22 @@ bool shouldFlip(LightEdge edge, vec3f p) {
     }
 
     return owl::dot(edge.v2 - edge.v1, owl::cross(cg - edge.v1, n)) < 0;
+}
+#endif
+
+// Functions used by both host and device
+__device__
+inline float getPlanePointDist(vec3f &point, vec4f &plane) {
+    float dist = point.x * plane.x + point.y + plane.y + point.z * plane.z + plane.w;
+    vec3f abc = vec3f(plane.x, plane.y, plane.z);
+    return dist / length(abc);
+}
+
+__device__
+inline double divideSafe(double a, double b) {
+	if (b < EPS && b > -EPS) {
+		b = b < 0 ? -EPS: EPS;
+	}
+
+	return a / b;
 }

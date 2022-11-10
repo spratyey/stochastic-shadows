@@ -6,12 +6,12 @@
 #include "bf.cuh"
 #include "ltc_utils.cuh"
 #include "lcg_random.cuh"
+#include "sil_utils.cuh"
 
 #define BLOOM 1
 
 __device__
-vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
-{
+vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng) {
     vec3f normal_local(0.f, 0.f, 1.f);
 
     vec2f rand0(lcg_randomf(rng), lcg_randomf(rng));

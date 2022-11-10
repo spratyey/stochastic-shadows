@@ -13,3 +13,5 @@
 #define NUM_BITS 8  	// Number of integers to use for bloom filter
 
 // #define DEBUG
+#define DEBUG_SIL
+// #define BSP_SIL

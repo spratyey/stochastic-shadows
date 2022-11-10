@@ -52,12 +52,11 @@ int main(int argc, char** argv)
         // now that everything is ready: launch it ....
         // ##################################################################
         win.showAndRun();
-    }
-    else {
+    } else {
         if (argc == 4) {
-          savePath = std::string(argv[3]);
+            savePath = std::string(argv[3]);
         } else {
-          savePath = "output";
+            savePath = "output";
         }
 
         nlohmann::json stats;

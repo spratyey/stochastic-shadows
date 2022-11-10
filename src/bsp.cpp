@@ -59,7 +59,7 @@ int BSP::makeInnerNode(std::pair<int, int> &planeSpan, std::pair<int, int> &edge
 
   int edgeStart = edgeSpan.first;
 
-  Node node = Node { plane, -1, -1 };
+  BSPNode node { plane, vec2i(-1, -1), -1, -1};
   int nodeIndex = nodes.size();
   nodes.push_back(node);
 

@@ -7,6 +7,7 @@ using namespace owl;
 
 struct BSPNode {
   vec4f plane;
+  vec2i silSpan;
   int left;
   int right;
 };
@@ -24,11 +25,15 @@ struct MeshLight {
 	int bvhIdx;
 	int bvhHeight;
 
+  int bspRoot;
+
   struct Span{
     // Spans of different compacted buffers
     // span.x -> start, span.y -> end; span.z -> size
+    // TODO: Remove the Z component
     vec3i silSpan;
     vec3i edgeSpan;
+    vec3i bspNodeSpan;
   } spans;
 };
 

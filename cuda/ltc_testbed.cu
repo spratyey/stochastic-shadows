@@ -7,12 +7,10 @@
 #include "constants.cuh"
 
 #include "lcg_random.cuh"
+#include "constants.cuh"
 #include "owl/common/math/vec.h"
 
-#define DEBUG_SIL
-
-OPTIX_RAYGEN_PROGRAM(rayGen)()
-{
+OPTIX_RAYGEN_PROGRAM(rayGen)() {
     const RayGenData& self = owl::getProgramData<RayGenData>();
     const vec2i pixelId = owl::getLaunchIndex();
     const int fbOfs = pixelId.x + self.frameBufferSize.x * pixelId.y;
@@ -38,19 +36,19 @@ OPTIX_RAYGEN_PROGRAM(rayGen)()
         color = si.diffuse;
     } else {
 #ifdef DEBUG_SIL
-      if (si.isLight) {
-        color = colorEdges(si, ray);
-      } else {
-        color = (vec3f(1) + si.n_geom) / vec3f(2);
-      }
+        if (si.isLight) {
+            color = colorEdges(si, ray);
+        } else {
+            color = (vec3f(1) + si.n_geom) / vec3f(2);
+        }
 #else
-      if (si.isLight) {
-        color = si.emit;
-      } else {
-        color = ltcDirectLightingLBVHSil(si, rng);
-      }
+        if (si.isLight) {
+            color = si.emit;
+        } else {
+            color = ltcDirectLightingLBVHSil(si, rng);
+        }
 #endif
-  }
+    }
 
     self.frameBuffer[fbOfs] = owl::make_rgba(color);
 }

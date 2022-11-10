@@ -13,7 +13,7 @@ class Mesh {
   public:
     std::vector<vec3f> vertex;
     std::vector<Edge>  edges;
-    std::vector<Face>  faces; // (ax + by + cz + d = 0)
+    std::vector<Face>  faces;
     std::vector<vec3f> normal;
 
     std::vector<vec2f> texcoord;

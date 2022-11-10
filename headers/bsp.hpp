@@ -2,20 +2,15 @@
 
 #include "owl/common/math/vec.h"
 #include "constants.cuh"
-#include "utils.hpp"
+#include "utils.cuh"
 #include <random>
 #include <vector>
 #include "owl/common/math/vec/functors.h"
+#include "types.hpp"
 
 using namespace owl;
 
 class BSP {
-	struct Node {
-		vec4f plane;
-		int left;
-		int right;
-	};
-
   private:
     std::vector<std::pair<vec3f, vec3f>> edges;
     std::vector<vec4f> planes;
@@ -25,7 +20,7 @@ class BSP {
 
   public:
     std::vector<vec3f> leaves;
-    std::vector<Node> nodes;
+    std::vector<BSPNode> nodes;
     int root;
 
     BSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBound);
