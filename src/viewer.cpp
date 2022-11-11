@@ -167,8 +167,10 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
     Model* triLights = scene.triLights;
 
     int totalTri = 0;
+#ifdef BSP_SIL
     std::vector<BSPNode> bspNodes;
     std::vector<int> silhouettes;
+#endif
     for (auto light : triLights->meshes) {
         MeshLight meshLight;
         meshLight.flux = 0.f;
@@ -177,14 +179,16 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
         meshLight.spans.edgeSpan = vec3i(lightEdgeList.size());
 
         // Calculate silhouette BSP 
+#ifdef BSP_SIL
         ConvexSilhouette silhouette(*light);
         meshLight.spans.silSpan = vec3i(silhouettes.size());
         meshLight.spans.bspNodeSpan = vec3i(bspNodes.size());
         meshLight.bspRoot = silhouette.root;
         silhouettes.insert(silhouettes.end(), silhouette.silhouettes.begin(), silhouette.silhouettes.end());
         bspNodes.insert(bspNodes.end(), silhouette.nodes.begin(), silhouette.nodes.end());
-        std::cout << silhouette.silhouettes.size() << std::endl;
         std::cout << silhouette.nodes.size() << std::endl;
+        std::cout << silhouette.silhouettes.size() << std::endl;
+#endif
 
         int numTri = 0;
         for (auto index : light->index) {
@@ -247,11 +251,13 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
         // Insert spans 
         meshLight.triCount = numTri;
         meshLight.spans.edgeSpan.y = lightEdgeList.size();
+#ifdef BSP_SIL
         meshLight.spans.silSpan.y = silhouettes.size();
         meshLight.spans.bspNodeSpan.y = bspNodes.size();
         meshLight.spans.edgeSpan.z = meshLight.spans.edgeSpan.y - meshLight.spans.edgeSpan.x;
         meshLight.spans.silSpan.z = meshLight.spans.silSpan.y - meshLight.spans.silSpan.x;
         meshLight.spans.bspNodeSpan.z = meshLight.spans.bspNodeSpan.y - meshLight.spans.bspNodeSpan.x;
+#endif
 
         meshLight.cg = (meshLight.aabbMin + meshLight.aabbMax) / 2.f;
 
@@ -370,6 +376,7 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
     owlParamsSetBuffer(this->launchParams, "lightTlas", lightTlasBuffer);
     owlParamsSet1i(this->launchParams, "lightTlasHeight", lightTlasHeight);
 
+#ifdef BSP_SIL
     // Upload the precomputed silhouettes
     OWLBuffer silBuffer = owlDeviceBufferCreate(context, OWL_INT, silhouettes.size(), silhouettes.data());
     owlParamsSetBuffer(this->launchParams, "silhouettes", silBuffer);
@@ -377,6 +384,7 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
     // Upload BSP
     OWLBuffer bspBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(BSPNode), bspNodes.size(), bspNodes.data());
     owlParamsSetBuffer(this->launchParams, "bsp", bspBuffer);
+#endif
 
     // ====================================================
     // Scene setup (scene geometry and materials)

@@ -8,9 +8,15 @@ BSP::BSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBound) {
 
   loadCube(minBound, maxBound);
 
+  // TODO: Implement custom lambda to consider epsilon
+  std::set<vec4f> planeSet;
   for (auto &plane : planes) {
-    this->planes.push_back(plane);
+    if (planeSet.find(plane) == planeSet.end()) {
+      this->planes.push_back(plane);
+      planeSet.insert(plane);
+    }
   }
+  std::cout << this->planes.size() << std::endl;
 
   leaves.push_back((minBound + maxBound) / 2);
   
@@ -172,7 +178,6 @@ std::pair<int, int> BSP::split(vec4f &plane, std::pair<int, int> &edgeSpan) {
   }
 
   if (planeVertices.size() < 3) {
-    std::cerr << "Idk what happens here\n";
     return std::make_pair(newEdgesStart, edges.size());
   }
 

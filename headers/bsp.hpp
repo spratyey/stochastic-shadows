@@ -3,10 +3,11 @@
 #include "owl/common/math/vec.h"
 #include "constants.cuh"
 #include "utils.cuh"
-#include <random>
-#include <vector>
 #include "owl/common/math/vec/functors.h"
 #include "types.hpp"
+#include <random>
+#include <vector>
+#include <set>
 
 using namespace owl;
 
