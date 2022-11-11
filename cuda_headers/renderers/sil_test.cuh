@@ -26,20 +26,31 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray, bool shouldPrint) {
     int edgeEndIdx = optixLaunchParams.meshLights[i].spans.edgeSpan.y;
     for (int j = edgeStartIdx; j < edgeEndIdx; j += 1) {
       LightEdge edge = optixLaunchParams.lightEdges[j];
-      float perpDist = length(cross(edge.v1 - p, edge.v2 - edge.v1)) / length(edge.v2 - edge.v1);
+      vec3f d = normalize(edge.v2 - edge.v1);
+      vec3f closePoint = edge.v1 + d * clamp(dot(p - edge.v1, d), 0.f, length(edge.v2 - edge.v1));
+      float perpDist = length(closePoint - p);
       if (perpDist < 0.1) {
         edgeIdx = j;
         lightIdx = i;
+        if (shouldPrint) printf("%f\n", perpDist);
+
+        if (shouldPrint) printf("p: %f %f %f\n", p.x, p.y, p.z);
+        if (shouldPrint) printf("closestPoint: %f %f %f\n", closePoint.x, closePoint.y, closePoint.z);
+        if (shouldPrint) printf("d: %f %f %f\n", d.x, d.y, d.z);
+        if (shouldPrint) printf("p - edge.v1: %f %f %f\n", (p-edge.v1).x, (p-edge.v1).y, (p-edge.v1).z);
+        if (shouldPrint) printf("edge.v1: %f %f %f\n", edge.v1.x, edge.v1.y, edge.v1.z);
+        if (shouldPrint) printf("edge.v2: %f %f %f\n", edge.v2.x, edge.v2.y, edge.v2.z);
+        if (shouldPrint) printf("%d %d\n", edgeIdx, lightIdx);
         break;
       }
     }
   }
 
-  if (shouldPrint) printf("%d %d\n", edgeIdx, lightIdx);
+  // if (shouldPrint) printf("%d %d\n", edgeIdx, lightIdx);
 
   if (lightIdx >= 0) {
     bool isSil = false;
-    bool toFlip;
+    bool toFlip = false;
     LightEdge edge = optixLaunchParams.lightEdges[edgeIdx];
 #ifdef BSP_SIL
     BSPNode node = getSilEdges(lightIdx, camPos);
@@ -58,7 +69,7 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray, bool shouldPrint) {
     }
 #else
     if (edge.adjFaceCount == 2) {
-      isSil = owl::dot(edge.n1, edge.v1 - camPos) * owl::dot(edge.n2, edge.v2 - camPos) < 0;
+      isSil = dot(edge.n1, edge.v1 - camPos) * dot(edge.n2, edge.v2 - camPos) < 0;
     } else {
       isSil = true;
     }
@@ -69,14 +80,19 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray, bool shouldPrint) {
 #endif
 
     if (isSil) {
-      float edgeLen = owl::length(edge.v1 - edge.v2);
-      float v1Len = owl::length(edge.v1 - si.p);
-      float v2Len = owl::length(edge.v2 - si.p);
+      float edgeLen = length(edge.v1 - edge.v2);
+      float v1Len = length(edge.v1 - p);
+      float v2Len = length(edge.v2 - p);
 
 
       // Red -> v1, Green -> v2
       vec3f c1 = toFlip ? vec3f(1, 0, 0) : vec3f(0, 1, 0);
       vec3f c2 = vec3f(1, 1, 0) - c1;
+      // if (shouldPrint) printf("%f %f %f\n", c1.x, c1.y, c1.z);
+      // if (shouldPrint) printf("%f %f %f\n", c2.x, c2.y, c2.z);
+      // if (shouldPrint) printf("%f %f %f\n", v1Len, v2Len, edgeLen);
+      // if (shouldPrint) printf("%f %f %f\n", edge.v1.x, edge.v1.y, edge.v1.z);
+      // if (shouldPrint) printf("%f %f %f\n", edge.v2.x, edge.v2.y, edge.v2.z);
 
       return v1Len / edgeLen * c1 + v2Len / edgeLen * c2;
     } else {
