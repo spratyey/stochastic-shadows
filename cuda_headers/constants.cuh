@@ -14,4 +14,4 @@
 
 // #define DEBUG
 #define DEBUG_SIL
-// #define BSP_SIL
+#define BSP_SIL

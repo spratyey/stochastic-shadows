@@ -167,7 +167,6 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
     Model* triLights = scene.triLights;
 
     int totalTri = 0;
-    int totalEdge = 0;
     std::vector<BSPNode> bspNodes;
     std::vector<int> silhouettes;
     for (auto light : triLights->meshes) {
@@ -184,6 +183,7 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
         meshLight.bspRoot = silhouette.root;
         silhouettes.insert(silhouettes.end(), silhouette.silhouettes.begin(), silhouette.silhouettes.end());
         bspNodes.insert(bspNodes.end(), silhouette.nodes.begin(), silhouette.nodes.end());
+        std::cout << silhouette.silhouettes.size() << std::endl;
         std::cout << silhouette.nodes.size() << std::endl;
 
         int numTri = 0;
@@ -221,7 +221,6 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
             numTri++;
         }
 
-        int numEdges = 0;
         // TODO: Move to a common edge representation similar to Face
         for (auto edge : light->edges) {
             LightEdge lightEdge;
@@ -241,11 +240,9 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
             lightEdge.adjFaceCount = edge.numAdjFace;
 
             lightEdgeList.push_back(lightEdge);
-            numEdges += 1;
         }
                     
         totalTri += numTri;
-        totalEdge += numEdges;
 
         // Insert spans 
         meshLight.triCount = numTri;

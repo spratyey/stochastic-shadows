@@ -47,7 +47,13 @@ int ConvexSilhouette::makeLeaf(int index, BSP &bsp) {
 	silhouettes.insert(silhouettes.end(), silhouette.begin(), silhouette.end());
 	int right = silhouettes.size();
 
-	nodes.push_back(BSPNode { vec4f(0), vec2i(left, right),  -1, -1});
+	BSPNode node;
+  	node.plane = vec4f(0);
+  	node.silSpan = vec2i(left, right);
+  	node.left = -1;
+  	node.right = -1;
+
+	nodes.push_back(node);
 
 	return nodes.size() - 1;
 }
