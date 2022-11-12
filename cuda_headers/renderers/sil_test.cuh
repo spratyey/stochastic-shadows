@@ -35,7 +35,6 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray, bool shouldPrint) {
   }
 
   if (lightIdx >= 0) {
-    // lightIdx = 1 - lightIdx;
     bool isSil = false;
     bool toFlip = false;
     LightEdge edge = optixLaunchParams.lightEdges[edgeIdx];

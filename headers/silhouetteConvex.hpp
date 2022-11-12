@@ -2,7 +2,7 @@
 
 #include "types.hpp"
 #include "bsp.hpp"
-// #include "twoPassBsp.hpp"
+#include "twoPassBsp.hpp"
 #include "mesh.hpp"
 #include "owl/common/math/vec.h"
 #include <vector>
@@ -20,7 +20,7 @@ class ConvexSilhouette {
     int root;
 
 	  ConvexSilhouette(Mesh &polyhedron); 
-	  int makeLeaf(int index, BSP &bsp); 
+	  int makeLeaf(int index, TwoPassBSP &bsp); 
     void GetNodeBuffer();
 	  void GetSilhouetteBuffer();
     void GetVertexBuffer();

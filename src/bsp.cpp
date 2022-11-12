@@ -9,6 +9,7 @@ BSP::BSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBound) {
   loadCube(minBound, maxBound);
 
   // TODO: Implement custom lambda to consider epsilon
+  // TODO: Remove this because it's being done in TwoPassBSP
   std::set<vec4f> planeSet;
   for (auto &plane : planes) {
     if (planeSet.find(plane) == planeSet.end()) {
@@ -16,7 +17,6 @@ BSP::BSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBound) {
       planeSet.insert(plane);
     }
   }
-  std::cout << this->planes.size() << std::endl;
 
   leaves.push_back((minBound + maxBound) / 2);
   
@@ -80,7 +80,6 @@ int BSP::makeInnerNode(std::pair<int, int> &planeSpan, std::pair<int, int> &edge
   newEdgeSpan = split(negPlane, edgeSpan);
   node.right = makeNode(planeSpan, newEdgeSpan);
 
-  // TODO: Verify this works
   edges.resize(edgeStart);
   planes.resize(planeStart);
 

@@ -7,7 +7,8 @@ ConvexSilhouette::ConvexSilhouette(Mesh &polyhedron) : polyhedron(polyhedron) {
 	}
 
 	// TODO: Actually calculate bound or make it an param
-	BSP bsp(planes, vec3f(-100), vec3f(100));
+	// BSP bsp(planes, vec3f(-100), vec3f(100));
+	TwoPassBSP bsp(planes, vec3f(-100), vec3f(100));
 
 	root = bsp.root;
 
@@ -40,7 +41,7 @@ ConvexSilhouette::ConvexSilhouette(Mesh &polyhedron) : polyhedron(polyhedron) {
 	// this.vertices = polyhedron.vertices.Select(v => (Vector3)v).ToArray();
 }
 
-int ConvexSilhouette::makeLeaf(int index, BSP &bsp) {
+int ConvexSilhouette::makeLeaf(int index, TwoPassBSP &bsp) {
     std::vector<int> silhouette = polyhedron.getSilhouetteEdges(bsp.leaves[index]);
 
 	int left = silhouettes.size();

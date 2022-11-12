@@ -204,14 +204,14 @@ bool shouldFlip(LightEdge edge, vec3f p) {
 #endif
 
 // Functions used by both host and device
-__device__
+__both__
 inline float getPlanePointDist(vec3f &point, vec4f &plane) {
     float dist = point.x * plane.x + point.y * plane.y + point.z * plane.z + plane.w;
     vec3f abc = vec3f(plane.x, plane.y, plane.z);
     return dist / length(abc);
 }
 
-__device__
+__both__
 inline double divideSafe(double a, double b) {
 	if (b < EPS && b > -EPS) {
 		b = b < 0 ? -EPS: EPS;

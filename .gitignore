@@ -9,3 +9,4 @@ test_bf
 .cache
 *.blend
 *.blend1
+scenes/
