@@ -6,12 +6,11 @@
 #include "bf.cuh"
 #include "ltc_utils.cuh"
 #include "lcg_random.cuh"
-#include "sil_utils.cuh"
-
-#define BLOOM 1
+#include "constants.cuh"
 
 __device__
-vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng) {
+vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
+{
     vec3f normal_local(0.f, 0.f, 1.f);
 
     vec2f rand0(lcg_randomf(rng), lcg_randomf(rng));
@@ -37,9 +36,11 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng) {
     iso_frame[0] = normalize(iso_frame[0]);
     iso_frame[2] = normal_local;
     iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
-
-#ifdef BLOOM
+    
+#ifdef USE_BLOOM
     unsigned int bf[NUM_BITS] = { 0 };
+    initBF(bf);
+    int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
 #else
     int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
 #endif
@@ -48,23 +49,13 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng) {
     int ridx = 0;
     float rpdf = 0.f;
 
-    selectFromLBVH(si, ridx, rpdf, rand0, rand1);
-#ifdef BLOOM
+    selectFromLBVHSil(si, ridx, rpdf, rand0, rand1);
+#ifdef USE_BLOOM
     insertBF(bf, ridx);
-#else
-    selectedIdx[selectedEnd++] = ridx;
 #endif
+    selectedIdx[selectedEnd++] = ridx;
 
     vec3f color(0.f, 0.f, 0.f);
-
-#ifdef DEBUG
-    const vec2i pixelId = owl::getLaunchIndex();
-    bool print = false;
-    if (pixelId.x == 0 && pixelId.y == 0) {
-      print = true;
-    }
-#endif
-
     for (int i = 0; i < MAX_LTC_LIGHTS * 2; i++) {
         if (selectedEnd == optixLaunchParams.numMeshLights || selectedEnd == MAX_LTC_LIGHTS)
             break;
@@ -74,10 +65,10 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng) {
 
         ridx = 0;
         rpdf = 0.f;
-        selectFromLBVH(si, ridx, rpdf, rand0, rand1);
+        selectFromLBVHSil(si, ridx, rpdf, rand0, rand1);
 
         bool found = false;
-#ifdef BLOOM
+#ifdef USE_BLOOM
         found = queryBF(bf, ridx);
 #else
         for (int j = 0; j < selectedEnd; j++) {
@@ -88,27 +79,20 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng) {
         }
 #endif
 
-#ifdef DEBUG
-        if (pixelId.x == 0 && pixelId.y == 0) {
-          printf("%d %d\n", ridx, found);
-        }
-#endif 
         if (!found) {
-#ifdef BLOOM
-            insertBF(bf, ridx);
-            color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, optixLaunchParams.triLights[ridx]);
-            selectedEnd++;
+#ifdef USE_BLOOM
+          insertBF(bf, ridx);
+          selectedIdx[selectedEnd++] = ridx;
+            color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, ridx);
 #else
-            selectedIdx[selectedEnd++] = ridx;
+          selectedIdx[selectedEnd++] = ridx;
 #endif
         }
     }
-    // return vec3f((float)selectedEnd / (float)MAX_LTC_LIGHTS);
 
 #ifndef BLOOM
     for (int i = 0; i < selectedEnd; i++) {
-        color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
-            optixLaunchParams.triLights[selectedIdx[i]]);
+        color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, selectedIdx[i]);
     }
 #endif
 

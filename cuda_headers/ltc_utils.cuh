@@ -108,15 +108,17 @@ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_m
 }
 
 __device__
-vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3], float amplitude,
-    vec3f iso_frame[3], int selectedLightIdx)
+vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3], float amplitude, vec3f iso_frame[3], int selectedLightIdx)
 {
     MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
-    int edgeStartIdx = meshLight.spans.edgeSpan.x;
-    int edgeEndIdx = meshLight.spans.edgeSpan.y;
     vec3f diffuseShading(0, 0, 0);
     vec3f ggxShading(0, 0, 0);
     vec3f lemit(20, 20, 20);
+#ifdef BST_SIL
+
+#else
+    int edgeStartIdx = meshLight.spans.edgeSpan.x;
+    int edgeEndIdx = meshLight.spans.edgeSpan.y;
     for (int i = edgeStartIdx; i < edgeEndIdx; i += 1) {
         LightEdge edge = optixLaunchParams.lightEdges[i];
         vec3f n1 = edge.n1;
@@ -129,7 +131,7 @@ vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f lt
         }
 
         if (isSil) {
-            bool toFlip = !shouldFlip(edge, si.p);
+            bool toFlip = shouldFlip(edge, si.p);
             vec3f lv1 = toFlip ? edge.v2 : edge.v1;
             vec3f lv2 = toFlip ? edge.v1 : edge.v2;
 
@@ -158,6 +160,7 @@ vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f lt
     vec3f color = (si.diffuse * lemit * diffuseShading) + (amplitude * lemit * ggxShading);
     return color;
 }
+#endif
 
 __device__
 void fetchLtcMat(float alpha, float theta, vec3f ltc_mat[3], float &amplitude)

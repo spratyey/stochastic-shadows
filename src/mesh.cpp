@@ -36,7 +36,7 @@ std::vector<int> Mesh::getSilhouetteEdges(vec3f point) {
 
 
     if (isSil) {
-      // Negetive index denotes need to flip
+      // Negative index denotes need to flip
       // For index 0, edges.size() denotes need to flip
       if (i == 0 && !visible1) {
         silEdges.push_back(edges.size());
@@ -46,5 +46,47 @@ std::vector<int> Mesh::getSilhouetteEdges(vec3f point) {
     }
   }
 
-  return silEdges;
+  if (silEdges.empty()) {
+    return silEdges;
+  }
+
+  std::vector<int> orderedSilEdges;
+  bool toFlip = false;
+  if (silEdges[0] < 0 || silEdges[0] == edges.size()) {
+    toFlip = true;
+  }
+  int edgeIdx = std::abs(silEdges[0]) % edges.size();
+  int remaining  = silEdges.size();
+  int curId = toFlip ? edges[edgeIdx].adjVert2 : edges[edgeIdx].adjVert1;
+  while (remaining > 0) {
+    bool found = false;
+    for (auto silEdge : silEdges) {
+      toFlip = false;
+      if (silEdge < 0 || silEdge == edges.size()) {
+        toFlip = true;
+      }
+
+      edgeIdx = std::abs(silEdge) % edges.size();
+      if (toFlip) {
+        if (curId == edges[edgeIdx].adjVert2) {
+          curId = edges[edgeIdx].adjVert1;
+          orderedSilEdges.push_back(silEdge);
+          remaining -= 1;
+          found = true;
+          break;
+        }
+      } else {
+        if (curId == edges[edgeIdx].adjVert1) {
+          curId = edges[edgeIdx].adjVert2;
+          orderedSilEdges.push_back(silEdge);
+          remaining -= 1;
+          found = true;
+          break;
+        }
+      }
+    }
+    if (!found) break;
+  }
+
+  return orderedSilEdges;
 }

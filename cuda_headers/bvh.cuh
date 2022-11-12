@@ -142,7 +142,6 @@ void selectFromLBVH(SurfaceInteraction& si, int& selectedIdx, float& lightSelect
 __device__ 
 void selectFromLBVHSil(SurfaceInteraction& si, int& selectedIdx, float& lightSelectionPdf, vec2f rand0, vec2f rand1)
 {
-    // First, traverse the light TLAS and retrive the mesh light
     float lightTlasPdf = 1.f;
     int lightTlasIdx = 0;
     int lightTlasRootNodeIdx = 0;

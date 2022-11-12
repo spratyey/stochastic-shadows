@@ -13,5 +13,15 @@
 #define NUM_BITS 8  	// Number of integers to use for bloom filter
 
 // #define DEBUG
-#define DEBUG_SIL
+
+// Renderer
+#define DEBUG_SIL 0
+#define LTC_BASE 1
+#define LTC_SAMPLE_TRI 2
+#define LTC_SAMPLE_POLY 3
+
+#define RENDERER DEBUG_SIL
+
+// Features
 #define BSP_SIL
+// #define USE_BLOOM

@@ -5,13 +5,13 @@
 #include "bvh.cuh"
 #include "bf.cuh"
 #include "ltc_utils.cuh"
-#include "lcg_random.h"
+#include "lcg_random.cuh"
+#include "sil_utils.cuh"
+#include "constants.cuh"
 
-#define BLOOM 1
 
 __device__
-vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
-{
+vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, LCGRand& rng) {
     vec3f normal_local(0.f, 0.f, 1.f);
 
     vec2f rand0(lcg_randomf(rng), lcg_randomf(rng));
@@ -37,11 +37,9 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
     iso_frame[0] = normalize(iso_frame[0]);
     iso_frame[2] = normal_local;
     iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
-    
-#ifdef BLOOM
+
+#ifdef USE_BLOOM
     unsigned int bf[NUM_BITS] = { 0 };
-    initBF(bf);
-    int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
 #else
     int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
 #endif
@@ -50,13 +48,15 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
     int ridx = 0;
     float rpdf = 0.f;
 
-    selectFromLBVHSil(si, ridx, rpdf, rand0, rand1);
-#ifdef BLOOM
+    selectFromLBVH(si, ridx, rpdf, rand0, rand1);
+#ifdef USE_BLOOM
     insertBF(bf, ridx);
-#endif
+#else
     selectedIdx[selectedEnd++] = ridx;
+#endif
 
     vec3f color(0.f, 0.f, 0.f);
+
     for (int i = 0; i < MAX_LTC_LIGHTS * 2; i++) {
         if (selectedEnd == optixLaunchParams.numMeshLights || selectedEnd == MAX_LTC_LIGHTS)
             break;
@@ -66,10 +66,10 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
 
         ridx = 0;
         rpdf = 0.f;
-        selectFromLBVHSil(si, ridx, rpdf, rand0, rand1);
+        selectFromLBVH(si, ridx, rpdf, rand0, rand1);
 
         bool found = false;
-#ifdef BLOOM
+#ifdef USE_BLOOM
         found = queryBF(bf, ridx);
 #else
         for (int j = 0; j < selectedEnd; j++) {
@@ -81,23 +81,22 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
 #endif
 
         if (!found) {
-#ifdef BLOOM
-          insertBF(bf, ridx);
-          selectedIdx[selectedEnd++] = ridx;
-        //   color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, ridx);
-        //   selectedEnd++;
+#ifdef USE_BLOOM
+            insertBF(bf, ridx);
+            color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, optixLaunchParams.triLights[ridx]);
+            selectedEnd++;
 #else
-          selectedIdx[selectedEnd++] = ridx;
+            selectedIdx[selectedEnd++] = ridx;
 #endif
         }
     }
-    return vec3f((float)selectedEnd / (float)MAX_LTC_LIGHTS);
 
-// #ifndef BLOOM
+#ifndef USE_BLOOM
     for (int i = 0; i < selectedEnd; i++) {
-        color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, selectedIdx[i]);
+        color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
+            optixLaunchParams.triLights[selectedIdx[i]]);
     }
-// #endif
+#endif
 
     return color;
 }

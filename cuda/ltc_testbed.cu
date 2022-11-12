@@ -2,9 +2,10 @@
 #include "utils.cuh"
 
 #include "hit.cuh"
-#include "renderers/ltc_lbvh_sil.cuh"
-#include "renderers/sil_test.cuh"
 #include "constants.cuh"
+#include "renderers/sil_test.cuh"
+#include "renderers/ltc_lbvh.cuh"
+#include "renderers/ltc_lbvh_sil.cuh"
 
 #include "lcg_random.cuh"
 #include "constants.cuh"
@@ -40,13 +41,19 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
     if (si.hit == false) {
         color = si.diffuse;
     } else {
-#ifdef DEBUG_SIL
+#if RENDERER == DEBUG_SIL 
         if (si.isLight) {
             color = colorEdges(si, ray, shouldPrint);
         } else {
             color = (vec3f(1) + si.n_geom) / vec3f(2);
         }
-#else
+#elif RENDERER == LTC_SAMPLE_TRI
+        if (si.isLight) {
+            color = si.emit;
+        } else {
+            color = ltcDirectLightingLBVH(si, rng);
+        }
+#elif RENDERER == LTC_SAMPLE_POLY
         if (si.isLight) {
             color = si.emit;
         } else {

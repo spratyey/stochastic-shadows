@@ -62,7 +62,7 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray, bool shouldPrint) {
     }
 
     if (isSil) {
-      bool toFlip = shouldFlip(edge, camPos);
+      toFlip = shouldFlip(edge, camPos);
     }
 #endif
 
@@ -75,7 +75,7 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray, bool shouldPrint) {
       vec3f c1 = toFlip ? vec3f(1, 0, 0) : vec3f(0, 1, 0);
       vec3f c2 = vec3f(1, 1, 0) - c1;
 
-      return v1Len / edgeLen * c1 + v2Len / edgeLen * c2;
+      return (v1Len / edgeLen * c1 + v2Len / edgeLen * c2);
     } else {
       return vec3f(0, 0, 1);
     }

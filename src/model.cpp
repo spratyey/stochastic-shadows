@@ -173,7 +173,7 @@ Model* loadOBJ(const std::string& objFile)
                 mesh->normal.push_back(normal_array[idx1.normal_index]);
                 mesh->normal.push_back(normal_array[idx2.normal_index]);
 
-                 mesh->faces.push_back(Face(
+                mesh->faces.push_back(Face(
                   normal_array[idx0.normal_index],
                   normal_array[idx1.normal_index],
                   normal_array[idx2.normal_index],
