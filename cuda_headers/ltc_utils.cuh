@@ -1,8 +1,13 @@
 #pragma once
 
+#include "owl/common/math/vec.h"
 #include "common.cuh"
 #include "utils.cuh"
 #include "polygon_utils.cuh"
+#include "sil_utils.cuh"
+#include "types.hpp"
+
+using namespace std;
 
 __device__
 vec3f integrateEdgeVec(vec3f v1, vec3f v2)
@@ -20,9 +25,37 @@ vec3f integrateEdgeVec(vec3f v1, vec3f v2)
 }
 
 __device__
-float integrateEdge(vec3f v1, vec3f v2)
-{
+float integrateEdge(vec3f v1, vec3f v2) {
     return integrateEdgeVec(v1, v2).z;
+}
+
+// Returns a vector c such that atan2(a.y, a.x) + atan2(b.y, b.x) = atan2(c.y, c.x)
+__device__
+vec2f atan2Sum(vec2f a, vec2f b) {
+	// Readable version:
+	return vec2f(a.x * b.x - a.y * b.y, a.y * b.x + a.x * b.y);
+}
+
+// Slightly faster version that's actually used:
+__device__
+float integrateEdgeSil(vec3f a, vec3f b) {
+	vec3f c = cross(a, b);
+	vec2f n = vec2f(rsqrt(dot(a, a) * dot(b, b)), rsqrt(dot(c, c)));
+	float AdotB = owl::clamp(dot(a, b) * n.x, -1.0f, 1.0f);
+	return acos(AdotB) * c.z * n.y;
+}
+
+// Returns a vector c such that atan2(a.y, a.x) - atan2(b.y, b.x) = atan2(c.y, c.x)
+__device__
+vec2f atan2Diff(vec2f a, vec2f b) {
+	// Readable version:
+	return vec2f(a.x * b.x + a.y * b.y, a.y * b.x - a.x * b.y);
+}
+
+__device__
+vec3f equatorInteresection(vec3f a, vec3f b) {
+    float t = a.z / (a.z - b.z);
+    return normalize(a + (b - a) * t);
 }
 
 __device__
@@ -107,6 +140,76 @@ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_m
     return color;
 }
 
+
+__device__
+vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightIdx) {
+    MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
+    vec3f color(0);
+    BSPNode node = getSilEdges(selectedLightIdx, si.p);
+    vec2i silSpan = node.silSpan;
+
+    int edgeCount = meshLight.spans.edgeSpan.y - meshLight.spans.edgeSpan.x;
+    
+    // Offset the arrays for ease
+    int *silhouettes = &optixLaunchParams.silhouettes[meshLight.spans.silSpan.x];
+    LightEdge *edges = &optixLaunchParams.lightEdges[meshLight.spans.edgeSpan.x];
+
+    int silIdx = silhouettes[silSpan.x];
+    int edgeIdx = abs(silIdx) % edgeCount;
+    bool toFlip = silIdx < 0 || silIdx == edgeCount;
+    vec3f prevVertex = toFlip ? edges[edgeIdx].v2 : edges[edgeIdx].v1;
+    vec3f currVertex;
+    vec3f lv1;
+    vec3f lv2;
+    vec2f clippingSum = vec2f(0);
+    vec3f integral = vec3f(0);
+    for (int i = silSpan.x; i < silSpan.y; i += 1) {
+        silIdx = silhouettes[i];
+        edgeIdx = abs(silIdx) % edgeCount;
+        toFlip = silIdx < 0 || silIdx == edgeCount;
+        currVertex = toFlip ? edges[edgeIdx].v1 : edges[edgeIdx].v2;
+
+        // Move to origin and normalize
+        lv1 = normalize(prevVertex - si.p);
+        lv2 = normalize(currVertex - si.p);
+
+        // Project to upper sphere
+        lv1 = normalize(apply_mat(si.to_local, lv1));
+        lv2 = normalize(apply_mat(si.to_local, lv2));
+
+        lv1 = normalize(apply_mat(mat, lv1));
+        lv2 = normalize(apply_mat(mat, lv2));
+
+        // Clip to upper hemisphere
+        bool lv1BelowEquator = lv1.z < 0;
+        bool lv2BelowEquator = lv2.z < 0;
+        bool bothBelowEquator = lv1BelowEquator && lv2BelowEquator;
+
+        if (lv1BelowEquator != lv2BelowEquator) {
+            vec3f p = equatorInteresection(lv1, lv2);
+
+            if (lv1BelowEquator) {
+                lv1 = p;
+                clippingSum = atan2Sum(clippingSum, vec2f(p.x, p.y));
+            } else {
+                lv2 = p;
+                clippingSum = atan2Diff(clippingSum, vec2f(p.x, p.y));
+            }
+        }
+
+        // Integrate
+        if (!bothBelowEquator) {
+            integral += integrateEdgeSil(lv1, lv2);
+        }
+
+        prevVertex = currVertex;
+    }
+    float angle = atan2(clippingSum.y, clippingSum.x);
+    color = (integral + fmodf(angle + 2*PI, 2*PI)) / (2*PI);
+
+    return color;
+}
+
 __device__
 vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3], float amplitude, vec3f iso_frame[3], int selectedLightIdx)
 {
@@ -114,8 +217,9 @@ vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f lt
     vec3f diffuseShading(0, 0, 0);
     vec3f ggxShading(0, 0, 0);
     vec3f lemit(20, 20, 20);
-#ifdef BST_SIL
-
+#ifdef BSP_SIL
+    diffuseShading = integrateOverSil(si, iso_frame, selectedLightIdx);
+    ggxShading = integrateOverSil(si, ltc_mat_inv, selectedLightIdx);
 #else
     int edgeStartIdx = meshLight.spans.edgeSpan.x;
     int edgeEndIdx = meshLight.spans.edgeSpan.y;
@@ -156,11 +260,11 @@ vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f lt
             ggxShading += integrateEdge(lv1, lv2);
         }
     }
-
+#endif
     vec3f color = (si.diffuse * lemit * diffuseShading) + (amplitude * lemit * ggxShading);
     return color;
 }
-#endif
+
 
 __device__
 void fetchLtcMat(float alpha, float theta, vec3f ltc_mat[3], float &amplitude)

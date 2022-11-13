@@ -24,7 +24,7 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray, bool shouldPrint) {
     for (int j = edgeStartIdx; j < edgeEndIdx; j += 1) {
       LightEdge edge = optixLaunchParams.lightEdges[j];
       vec3f d = normalize(edge.v2 - edge.v1);
-      vec3f closePoint = edge.v1 + d * clamp(dot(p - edge.v1, d), 0.f, length(edge.v2 - edge.v1));
+      vec3f closePoint = edge.v1 + d * owl::clamp(dot(p - edge.v1, d), 0.f, length(edge.v2 - edge.v1));
       float perpDist = length(closePoint - p);
       if (perpDist < 0.1) {
         edgeIdx = j;
