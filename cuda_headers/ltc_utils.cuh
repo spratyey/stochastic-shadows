@@ -213,7 +213,6 @@ vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightId
 __device__
 vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3], float amplitude, vec3f iso_frame[3], int selectedLightIdx)
 {
-    MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
     vec3f diffuseShading(0, 0, 0);
     vec3f ggxShading(0, 0, 0);
     vec3f lemit(20, 20, 20);
