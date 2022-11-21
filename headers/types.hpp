@@ -16,6 +16,8 @@ struct MeshLight {
 	vec3f aabbMin = vec3f(1e30f);
 	vec3f aabbMax = vec3f(-1e30f);
 	vec3f cg;
+  vec3f avgEmit;
+
 	float flux;
 
 	int triIdx;

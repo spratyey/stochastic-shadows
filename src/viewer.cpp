@@ -184,11 +184,13 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
         meshLight.spans.silSpan = vec3i(silhouettes.size());
         meshLight.spans.bspNodeSpan = vec3i(bspNodes.size());
         meshLight.bspRoot = silhouette.root;
+        meshLight.avgEmit = vec3f(0);
         silhouettes.insert(silhouettes.end(), silhouette.silhouettes.begin(), silhouette.silhouettes.end());
         bspNodes.insert(bspNodes.end(), silhouette.nodes.begin(), silhouette.nodes.end());
 #endif
 
         int numTri = 0;
+        float totalArea = 0;
         for (auto index : light->index) {
             // First, setup data foran individual triangle light source
             TriLight triLight;
@@ -218,10 +220,18 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
             meshLight.aabbMin = owl::min(meshLight.aabbMin, triLight.aabbMin);
             meshLight.aabbMax = owl::max(meshLight.aabbMax, triLight.aabbMax);
             meshLight.flux += triLight.flux;
+            
+            // Set average emmitance weighted by triangle size
+            meshLight.avgEmit += triLight.area * light->emit;
 
             // Keep track of number of triangles in the current light mesh
             numTri++;
+
+            // Keep track of total triangle area
+            totalArea += triLight.area;
         }
+
+        meshLight.avgEmit /= totalArea;
 
         // TODO: Move to a common edge representation similar to Face
         for (auto edge : light->edges) {

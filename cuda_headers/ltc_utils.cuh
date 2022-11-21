@@ -64,9 +64,7 @@ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_m
     vec3f lv1 = triLight.v1;
     vec3f lv2 = triLight.v2;
     vec3f lv3 = triLight.v3;
-    // TODO: Reset this later
-    // vec3f lemit = triLight.emit;
-    vec3f lemit = vec3f(20.0);
+    vec3f lemit = triLight.emit;
     vec3f lnormal = triLight.normal;
 
     // Move to origin and normalize
@@ -206,10 +204,6 @@ vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightId
         prevVertex = currVertex;
     }
     float angle = atan2(clippingSum.y, clippingSum.x);
-    // if (shouldPrint) printf("clippingSum %f %f\n", clippingSum.x, clippingSum.y);
-    if (shouldPrint) printf("angle %f\n", angle / (2*PI));
-    if (shouldPrint) printf("integral %f, %f, %f\n", integral.x / (2*PI), integral.y / (2*PI), integral.z / (2*PI));
-    // if (shouldPrint) printf("********\n");
 
     color = (integral + fmodf(angle + 2*PI, 2*PI)) / (2*PI);
 
@@ -221,15 +215,11 @@ vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f lt
 {
     vec3f diffuseShading(0, 0, 0);
     vec3f ggxShading(0, 0, 0);
-    // TODO: make this the average of all faces?
-    vec3f lemit(50, 50, 50);
+    MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
 #ifdef BSP_SIL
     diffuseShading = integrateOverSil(si, iso_frame, selectedLightIdx, shouldPrint);
     ggxShading = integrateOverSil(si, ltc_mat_inv, selectedLightIdx, shouldPrint);
-    // if (shouldPrint) printf("diffuse %f %f %f\n", diffuseShading.x, diffuseShading.y, diffuseShading.z);
-    // if (shouldPrint) printf("ggx %f %f %f\n", ggxShading.x, ggxShading.y, ggxShading.z);
 #else
-    MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
     int edgeStartIdx = meshLight.spans.edgeSpan.x;
     int edgeEndIdx = meshLight.spans.edgeSpan.y;
     for (int i = edgeStartIdx; i < edgeEndIdx; i += 1) {
@@ -270,8 +260,7 @@ vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f lt
         }
     }
 #endif
-    vec3f color = (si.diffuse * lemit * diffuseShading) + (amplitude * lemit * ggxShading);
-    if (shouldPrint) printf("color %f %f %f\n", color.x, color.y, color.z);
+    vec3f color = (si.diffuse * meshLight.avgEmit * diffuseShading) + (amplitude * meshLight.avgEmit * ggxShading);
     return color;
 }
 
