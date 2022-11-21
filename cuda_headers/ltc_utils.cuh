@@ -65,7 +65,9 @@ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_m
     vec3f lv1 = triLight.v1;
     vec3f lv2 = triLight.v2;
     vec3f lv3 = triLight.v3;
-    vec3f lemit = triLight.emit;
+    // TODO: Reset thi later
+    // vec3f lemit = triLight.emit;
+    vec3f lemit = vec3f(20.0);
     vec3f lnormal = triLight.normal;
 
     // Move to origin and normalize
@@ -142,7 +144,7 @@ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_m
 
 
 __device__
-vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightIdx) {
+vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightIdx, bool shouldPrint) {
     MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
     vec3f color(0);
     BSPNode node = getSilEdges(selectedLightIdx, si.p);
@@ -161,7 +163,7 @@ vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightId
     vec3f currVertex;
     vec3f lv1;
     vec3f lv2;
-    vec2f clippingSum = vec2f(0);
+    vec2f clippingSum = vec2f(1, 0);
     vec3f integral = vec3f(0);
     for (int i = silSpan.x; i < silSpan.y; i += 1) {
         silIdx = silhouettes[i];
@@ -199,28 +201,34 @@ vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightId
 
         // Integrate
         if (!bothBelowEquator) {
-         integral += integrateEdge(lv1, lv2);
+            integral += integrateEdge(lv1, lv2);
         }
 
         prevVertex = currVertex;
     }
     float angle = atan2(clippingSum.y, clippingSum.x);
-    color = (integral + fmodf(angle + 2*PI, 2*PI)) / (2*PI);
-    color = integral / (2*PI);
+    if (shouldPrint) printf("clippingSum %f %f\n", clippingSum.x, clippingSum.y);
+    if (shouldPrint) printf("angle %f\n", angle / (2*PI));
+    if (shouldPrint) printf("integral %f, %f, %f\n", integral.x, integral.y, integral.z);
+
+    color = (integral + angle) / (2*PI);
+    // color = integral / (2*PI);
 
     return color;
 }
 
 __device__
-vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3], float amplitude, vec3f iso_frame[3], int selectedLightIdx)
+vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3], float amplitude, vec3f iso_frame[3], int selectedLightIdx, bool shouldPrint)
 {
     vec3f diffuseShading(0, 0, 0);
     vec3f ggxShading(0, 0, 0);
-    vec3f lemit(20, 20, 20);
+    // TODO: make this the average of all faces?
+    vec3f lemit(50, 50, 50);
 #ifdef BSP_SIL
-    diffuseShading = integrateOverSil(si, iso_frame, selectedLightIdx);
-    ggxShading = integrateOverSil(si, ltc_mat_inv, selectedLightIdx);
+    diffuseShading = integrateOverSil(si, iso_frame, selectedLightIdx, shouldPrint);
+    ggxShading = integrateOverSil(si, ltc_mat_inv, selectedLightIdx, shouldPrint);
 #else
+    MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
     int edgeStartIdx = meshLight.spans.edgeSpan.x;
     int edgeEndIdx = meshLight.spans.edgeSpan.y;
     for (int i = edgeStartIdx; i < edgeEndIdx; i += 1) {

@@ -22,3 +22,8 @@ BSPNode getSilEdges(int lightIdx, vec3f &p) {
     }
     return node;
 }
+
+__device__
+bool shouldFlip(int silIdx, int edgeCount) {
+    return silIdx < 0 || silIdx == edgeCount;
+}

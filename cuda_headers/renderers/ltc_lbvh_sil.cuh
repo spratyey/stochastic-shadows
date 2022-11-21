@@ -80,12 +80,12 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng, bool should
 #endif
 
         if (!found) {
+          if (shouldPrint) printf("%d ", ridx);
 #ifdef USE_BLOOM
           insertBF(bf, ridx);
           selectedIdx[selectedEnd++] = ridx;
-            color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, ridx);
+            color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, ridx, shouldPrint);
 #else
-          if (shouldPrint) printf("%d ", ridx);
           selectedIdx[selectedEnd++] = ridx;
 #endif
         }
@@ -94,7 +94,7 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng, bool should
 
 #ifndef BLOOM
     for (int i = 0; i < selectedEnd; i++) {
-        color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, selectedIdx[i]);
+        color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, selectedIdx[i], shouldPrint);
     }
 #endif
 

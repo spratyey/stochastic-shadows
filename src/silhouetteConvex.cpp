@@ -36,9 +36,6 @@ ConvexSilhouette::ConvexSilhouette(Mesh &polyhedron) : polyhedron(polyhedron) {
 
 		nodes[i] = node;
 	}
-
-    // TODO
-	// this.vertices = polyhedron.vertices.Select(v => (Vector3)v).ToArray();
 }
 
 int ConvexSilhouette::makeLeaf(int index, TwoPassBSP &bsp) {

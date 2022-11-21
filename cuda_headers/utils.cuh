@@ -139,6 +139,22 @@ void matrixInverse(vec3f m[3], vec3f minv[3]) {
 }
 
 __device__
+void matrixTranspose(vec3f m[3], vec3f mTrans[3]) {
+    mTrans[0] = m[0];
+    mTrans[1] = m[1];
+    mTrans[2] = m[2];
+
+    mTrans[1].x = m[0].y;
+    mTrans[2].x = m[0].z;
+
+    mTrans[0].y = m[1].x;
+    mTrans[2].y = m[1].z;
+
+    mTrans[0].z = m[2].x;
+    mTrans[1].z = m[2].y;
+}
+
+__device__
 void orthonormalBasis(vec3f n, vec3f mat[3], vec3f invmat[3])
 {
     vec3f c1, c2, c3;
@@ -160,8 +176,7 @@ void orthonormalBasis(vec3f n, vec3f mat[3], vec3f invmat[3])
     mat[1] = c2;
     mat[2] = c3;
 
-    // TODO: Convert to transpose
-    matrixInverse(mat, invmat);
+    matrixTranspose(mat, invmat);
 }
 
 __device__

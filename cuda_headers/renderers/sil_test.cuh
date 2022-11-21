@@ -34,6 +34,8 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray, bool shouldPrint) {
     }
   }
 
+  int silNum = 1;
+  int silCount = 1;
   if (lightIdx >= 0) {
     bool isSil = false;
     bool toFlip = false;
@@ -44,16 +46,20 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray, bool shouldPrint) {
     vec2i silSpan = node.silSpan;
     int edgeCount = light.spans.edgeSpan.y - light.spans.edgeSpan.x;
     int edgeStartIdx = light.spans.edgeSpan.x;
-    if (shouldPrint) printf("%d\n", lightIdx);
+    int *silhouettes = &optixLaunchParams.silhouettes[light.spans.silSpan.x];
     toFlip = false;
     for (int i = silSpan.x; i < silSpan.y; i += 1) {
-      int silIdx = optixLaunchParams.silhouettes[light.spans.silSpan.x + i];
+      int silIdx = silhouettes[i];
       if (abs(silIdx) == edgeIdx - edgeStartIdx || silIdx - edgeCount == edgeIdx - edgeStartIdx) {
-        toFlip = silIdx < 0 || silIdx == edgeCount;
+        toFlip = shouldFlip(silIdx, edgeCount);
         isSil = true;
+        silNum = i - silSpan.x + 1;
+        silCount = silSpan.y - silSpan.x;
+        if (shouldPrint) printf("%d ", silNum);
         break;
       }
     }
+    if (shouldPrint) printf("\n");
 #else
     if (edge.adjFaceCount == 2) {
       isSil = dot(edge.n1, edge.v1 - camPos) * dot(edge.n2, edge.v2 - camPos) < 0;
@@ -75,7 +81,7 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray, bool shouldPrint) {
       vec3f c1 = toFlip ? vec3f(1, 0, 0) : vec3f(0, 1, 0);
       vec3f c2 = vec3f(1, 1, 0) - c1;
 
-      return (v1Len / edgeLen * c1 + v2Len / edgeLen * c2);
+      return (v1Len / edgeLen * c1 + v2Len / edgeLen * c2) * ((float)silNum / (float)silCount);
     } else {
       return vec3f(0, 0, 1);
     }

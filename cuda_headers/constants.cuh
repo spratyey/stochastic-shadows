@@ -22,7 +22,7 @@
 
 // #define RENDERER DEBUG_SIL
 // #define RENDERER LTC_BASE
-// #define RENDERER LTC_TRI
+// #define RENDERER LTC_SAMPLE_TRI
 #define RENDERER LTC_SAMPLE_POLY
 
 // Features

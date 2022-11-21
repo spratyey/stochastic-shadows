@@ -467,7 +467,7 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
 
     vec3f color(0.f, 0.f, 0.f);
     for (int i = 0; i < selectedEnd; i++) {
-        color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, selectedIdx[i]);
+        color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, selectedIdx[i], false);
     }
 
     return color;
