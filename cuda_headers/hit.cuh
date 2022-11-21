@@ -36,6 +36,7 @@ OPTIX_CLOSEST_HIT_PROGRAM(triangleMeshCH)()
 
     SurfaceInteraction& si = owl::getPRD<SurfaceInteraction>();
     si.p = barycentricInterpolate(self.vertex, primitiveIndices);
+    // TODO: Fix this to work with multiple bounces
     si.wo = owl::normalize( optixLaunchParams.camera.pos - si.p );
     si.uv = barycentricInterpolate(self.texCoord, primitiveIndices);
     si.n_geom = normalize( barycentricInterpolate(self.normal, primitiveIndices) );
@@ -50,7 +51,7 @@ OPTIX_CLOSEST_HIT_PROGRAM(triangleMeshCH)()
     si.alpha = self.alpha;
     if (self.hasAlphaTexture)
         si.alpha = tex2D<float4>(self.alpha_texture, si.uv.x, si.uv.y).x;
-    si.alpha = clamp(si.alpha, 0.01f, 1.f);
+    si.alpha = owl::clamp(si.alpha, 0.01f, 1.f);
 
     si.emit = self.emit;
     si.isLight = self.isLight;

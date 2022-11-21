@@ -160,6 +160,7 @@ void orthonormalBasis(vec3f n, vec3f mat[3], vec3f invmat[3])
     mat[1] = c2;
     mat[2] = c3;
 
+    // TODO: Convert to transpose
     matrixInverse(mat, invmat);
 }
 

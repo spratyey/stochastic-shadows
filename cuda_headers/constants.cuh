@@ -20,6 +20,9 @@
 #define LTC_SAMPLE_TRI 2
 #define LTC_SAMPLE_POLY 3
 
+// #define RENDERER DEBUG_SIL
+// #define RENDERER LTC_BASE
+// #define RENDERER LTC_TRI
 #define RENDERER LTC_SAMPLE_POLY
 
 // Features

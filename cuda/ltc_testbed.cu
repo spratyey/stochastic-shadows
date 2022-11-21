@@ -64,7 +64,7 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         if (si.isLight) {
             color = si.emit;
         } else {
-            color = ltcDirectLightingLBVHSil(si, rng);
+            color = ltcDirectLightingLBVHSil(si, rng, shouldPrint);
         }
 #endif
     }

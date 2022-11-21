@@ -497,6 +497,7 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
         owlTrianglesSetIndices(triangleGeom, indexBuffer,
             mesh->index.size(), sizeof(vec3i), 0);
 
+        // TODO: Make a copy of these
         owlGeomSetBuffer(triangleGeom, "vertex", vertexBuffer);
         owlGeomSetBuffer(triangleGeom, "normal", normalBuffer);
         owlGeomSetBuffer(triangleGeom, "index", indexBuffer);

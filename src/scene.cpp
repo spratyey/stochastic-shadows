@@ -66,7 +66,7 @@ bool parseScene(std::string sceneFile, Scene& scene)
 
     // Load .obj file of surface, if not defined, throw exception
     try {
-        scene.model = loadOBJ(sceneConfig["surface_geometry"]);
+        scene.model = loadOBJ(sceneConfig["surface_geometry"], false);
     }
     catch (nlohmann::json::exception e) {
         LOG("No .obj file given/found!");
@@ -75,7 +75,7 @@ bool parseScene(std::string sceneFile, Scene& scene)
 
     // Load .obj file of area lights
     try {
-        scene.triLights = loadOBJ(sceneConfig["area_lights"]);
+        scene.triLights = loadOBJ(sceneConfig["area_lights"], true);
         scene.syncLights();
     }
     catch (nlohmann::json::exception e) {

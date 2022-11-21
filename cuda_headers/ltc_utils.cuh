@@ -199,13 +199,14 @@ vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightId
 
         // Integrate
         if (!bothBelowEquator) {
-            integral += integrateEdgeSil(lv1, lv2);
+         integral += integrateEdge(lv1, lv2);
         }
 
         prevVertex = currVertex;
     }
     float angle = atan2(clippingSum.y, clippingSum.x);
     color = (integral + fmodf(angle + 2*PI, 2*PI)) / (2*PI);
+    color = integral / (2*PI);
 
     return color;
 }

@@ -9,7 +9,7 @@
 #include "constants.cuh"
 
 __device__
-vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
+vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng, bool shouldPrint)
 {
     vec3f normal_local(0.f, 0.f, 1.f);
 
@@ -85,10 +85,12 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
           selectedIdx[selectedEnd++] = ridx;
             color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, ridx);
 #else
+          if (shouldPrint) printf("%d ", ridx);
           selectedIdx[selectedEnd++] = ridx;
 #endif
         }
     }
+    if (shouldPrint) printf("\n");
 
 #ifndef BLOOM
     for (int i = 0; i < selectedEnd; i++) {
