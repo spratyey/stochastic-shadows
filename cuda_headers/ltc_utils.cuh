@@ -35,6 +35,12 @@ vec2f atan2Sum(vec2f a, vec2f b) {
 	// Readable version:
 	return vec2f(a.x * b.x - a.y * b.y, a.y * b.x + a.x * b.y);
 }
+// Returns a vector c such that atan2(a.y, a.x) - atan2(b.y, b.x) = atan2(c.y, c.x)
+__device__
+vec2f atan2Diff(vec2f a, vec2f b) {
+	// Readable version:
+	return vec2f(a.x * b.x + a.y * b.y, a.y * b.x - a.x * b.y);
+}
 
 // Slightly faster version that's actually used:
 __device__
@@ -43,13 +49,6 @@ float integrateEdgeSil(vec3f a, vec3f b) {
 	vec2f n = vec2f(rsqrt(dot(a, a) * dot(b, b)), rsqrt(dot(c, c)));
 	float AdotB = owl::clamp(dot(a, b) * n.x, -1.0f, 1.0f);
 	return acos(AdotB) * c.z * n.y;
-}
-
-// Returns a vector c such that atan2(a.y, a.x) - atan2(b.y, b.x) = atan2(c.y, c.x)
-__device__
-vec2f atan2Diff(vec2f a, vec2f b) {
-	// Readable version:
-	return vec2f(a.x * b.x + a.y * b.y, a.y * b.x - a.x * b.y);
 }
 
 __device__
@@ -65,7 +64,7 @@ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_m
     vec3f lv1 = triLight.v1;
     vec3f lv2 = triLight.v2;
     vec3f lv3 = triLight.v3;
-    // TODO: Reset thi later
+    // TODO: Reset this later
     // vec3f lemit = triLight.emit;
     vec3f lemit = vec3f(20.0);
     vec3f lnormal = triLight.normal;
@@ -201,18 +200,18 @@ vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightId
 
         // Integrate
         if (!bothBelowEquator) {
-            integral += integrateEdge(lv1, lv2);
+            integral += integrateEdgeSil(lv1, lv2);
         }
 
         prevVertex = currVertex;
     }
     float angle = atan2(clippingSum.y, clippingSum.x);
-    if (shouldPrint) printf("clippingSum %f %f\n", clippingSum.x, clippingSum.y);
+    // if (shouldPrint) printf("clippingSum %f %f\n", clippingSum.x, clippingSum.y);
     if (shouldPrint) printf("angle %f\n", angle / (2*PI));
-    if (shouldPrint) printf("integral %f, %f, %f\n", integral.x, integral.y, integral.z);
+    if (shouldPrint) printf("integral %f, %f, %f\n", integral.x / (2*PI), integral.y / (2*PI), integral.z / (2*PI));
+    // if (shouldPrint) printf("********\n");
 
-    color = (integral + angle) / (2*PI);
-    // color = integral / (2*PI);
+    color = (integral + fmodf(angle + 2*PI, 2*PI)) / (2*PI);
 
     return color;
 }
@@ -227,6 +226,8 @@ vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f lt
 #ifdef BSP_SIL
     diffuseShading = integrateOverSil(si, iso_frame, selectedLightIdx, shouldPrint);
     ggxShading = integrateOverSil(si, ltc_mat_inv, selectedLightIdx, shouldPrint);
+    // if (shouldPrint) printf("diffuse %f %f %f\n", diffuseShading.x, diffuseShading.y, diffuseShading.z);
+    // if (shouldPrint) printf("ggx %f %f %f\n", ggxShading.x, ggxShading.y, ggxShading.z);
 #else
     MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
     int edgeStartIdx = meshLight.spans.edgeSpan.x;
@@ -270,6 +271,7 @@ vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f lt
     }
 #endif
     vec3f color = (si.diffuse * lemit * diffuseShading) + (amplitude * lemit * ggxShading);
+    if (shouldPrint) printf("color %f %f %f\n", color.x, color.y, color.z);
     return color;
 }
 
