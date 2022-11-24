@@ -141,7 +141,7 @@ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_m
 
 
 __device__
-vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightIdx, bool shouldPrint) {
+vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightIdx) {
     MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
     vec3f color(0);
     BSPNode node = getSilEdges(selectedLightIdx, si.p);
@@ -211,14 +211,14 @@ vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightId
 }
 
 __device__
-vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3], float amplitude, vec3f iso_frame[3], int selectedLightIdx, bool shouldPrint)
+vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3], float amplitude, vec3f iso_frame[3], int selectedLightIdx)
 {
     vec3f diffuseShading(0, 0, 0);
     vec3f ggxShading(0, 0, 0);
     MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
 #ifdef BSP_SIL
-    diffuseShading = integrateOverSil(si, iso_frame, selectedLightIdx, shouldPrint);
-    ggxShading = integrateOverSil(si, ltc_mat_inv, selectedLightIdx, shouldPrint);
+    diffuseShading = integrateOverSil(si, iso_frame, selectedLightIdx);
+    ggxShading = integrateOverSil(si, ltc_mat_inv, selectedLightIdx);
 #else
     int edgeStartIdx = meshLight.spans.edgeSpan.x;
     int edgeEndIdx = meshLight.spans.edgeSpan.y;

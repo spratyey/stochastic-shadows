@@ -7,6 +7,17 @@
 #include "constants.cuh"
 #include "types.hpp"
 
+// Useful for debugging
+// TODO: Override this if build is not debug mode
+#define print_pixel(...)                                                   					\
+{																							\
+    const vec2i pixelId = owl::getLaunchIndex();											\
+    if (optixLaunchParams.pixelId.x == pixelId.x && 										\
+		optixLaunchParams.pixelId.y == optixLaunchParams.bufferSize.y - pixelId.y && 		\
+		optixLaunchParams.clicked) 															\
+        printf( __VA_ARGS__ );                                                              \
+}
+
 using namespace owl;
 
 enum RendererType {
@@ -87,6 +98,7 @@ struct TriLight {
 struct LaunchParams {
 	bool clicked;
 	vec2i pixelId;
+	vec2i bufferSize;
 
 	float4* accumBuffer;
 	int accumId;

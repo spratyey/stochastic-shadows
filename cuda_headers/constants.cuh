@@ -27,4 +27,4 @@
 
 // Features
 #define BSP_SIL
-// #define USE_BLOOM
+#define USE_BLOOM

@@ -339,6 +339,8 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
         // Mouse variables
         {"clicked", OWL_BOOL, OWL_OFFSETOF(LaunchParams, clicked)},
         {"pixelId", OWL_INT2, OWL_OFFSETOF(LaunchParams, pixelId)},
+        // Screen size
+        {"bufferSize", OWL_INT2, OWL_OFFSETOF(LaunchParams, bufferSize)},
         {nullptr}
     };
 
@@ -383,6 +385,10 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
     OWLBuffer lightTlasBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(LightBVH), lightTlas.size(), lightTlas.data());
     owlParamsSetBuffer(this->launchParams, "lightTlas", lightTlasBuffer);
     owlParamsSet1i(this->launchParams, "lightTlasHeight", lightTlasHeight);
+
+    // Set screen size
+    vec2i bufferSize(this->fbSize.x, this->fbSize.y);
+    owlParamsSet2i(this->launchParams, "bufferSize", (const owl2i&)bufferSize);
 
 #ifdef BSP_SIL
     // Upload the precomputed silhouettes
@@ -627,7 +633,7 @@ void RenderWindow::resize(const vec2i& newSize)
 {
     // Resize framebuffer, and other ops (OWL::Viewer ops)
     OWLViewer::resize(newSize);
-
+    owlParamsSet2i(this->launchParams, "bufferSize", (const owl2i&)newSize);
     // Perform camera move i.e. set new camera parameters, and set SBT to be updated
     this->cameraChanged();
 }

@@ -7,10 +7,9 @@
 #include "ltc_utils.cuh"
 #include "lcg_random.cuh"
 #include "constants.cuh"
-// #include "light_sampling.cuh"
 
 __device__
-vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng, bool shouldPrint)
+vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
 {
     vec3f normal_local(0.f, 0.f, 1.f);
 
@@ -39,12 +38,11 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng, bool should
     iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
     
 #ifdef USE_BLOOM
-    unsigned int bf[NUM_BITS] = { 0 };
+    unsigned int bf[NUM_BITS];
     initBF(bf);
-    int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
-#else
-    int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
 #endif
+
+    int selectedIdx[MAX_LTC_LIGHTS] = { -1 };
     int selectedEnd = 0;
 
     int ridx = 0;
@@ -57,8 +55,9 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng, bool should
 
     vec3f color(0.f, 0.f, 0.f);
     for (int i = 0; i < MAX_LTC_LIGHTS * 2; i++) {
-        if (selectedEnd == optixLaunchParams.numMeshLights || selectedEnd == MAX_LTC_LIGHTS)
+        if (selectedEnd == optixLaunchParams.numMeshLights || selectedEnd == MAX_LTC_LIGHTS) {
             break;
+        }
 
         rand0 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
         rand1 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
@@ -79,23 +78,18 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng, bool should
 #endif
 
         if (!found) {
-            if (shouldPrint) printf("%d ", ridx);
+            print_pixel("%d ", ridx);
 #ifdef USE_BLOOM
             insertBF(bf, ridx);
-            selectedIdx[selectedEnd++] = ridx;
-            color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, ridx, shouldPrint);
-#else
-            selectedIdx[selectedEnd++] = ridx;
 #endif
+            selectedIdx[selectedEnd++] = ridx;
         }
     }
-    if (shouldPrint) printf("\n");
+    print_pixel("\n");
 
-#ifndef BLOOM
     for (int i = 0; i < selectedEnd; i++) {
-        color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, selectedIdx[i], shouldPrint);
+        color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, selectedIdx[i]);
     }
-#endif
 
     return color;
 }

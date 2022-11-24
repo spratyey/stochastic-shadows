@@ -32,19 +32,16 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
     SurfaceInteraction si;
     owl::traceRay(optixLaunchParams.world, ray, si);
 
+    print_pixel("%d %d %d %d\n", self.frameBufferSize.x, self.frameBufferSize.y, pixelId.x, pixelId.y);
+
     vec3f color(0.f);
 
-    bool shouldPrint = false;
-    if (optixLaunchParams.pixelId.x == pixelId.x && optixLaunchParams.pixelId.y == self.frameBufferSize.y - pixelId.y && optixLaunchParams.clicked) {
-        printf("%d %d %d %f %f %f\n", pixelId.x, pixelId.y, si.isLight, si.n_geom.z, screen.u, screen.v);
-        shouldPrint = true;
-    }
     if (si.hit == false) {
         color = si.diffuse;
     } else {
 #if RENDERER == DEBUG_SIL 
         if (si.isLight) {
-            color = colorEdges(si, ray, shouldPrint);
+            color = colorEdges(si, ray);
         } else {
             color = (vec3f(1) + si.n_geom) / vec3f(2);
         }
@@ -64,7 +61,7 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         if (si.isLight) {
             color = si.emit;
         } else {
-            color = ltcDirectLightingLBVHSil(si, rng, shouldPrint);
+            color = ltcDirectLightingLBVHSil(si, rng);
         }
 #endif
     }

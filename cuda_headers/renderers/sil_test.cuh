@@ -9,7 +9,7 @@
 using namespace owl;
 
 __device__
-vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray, bool shouldPrint) {
+vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray) {
   vec3f p = si.p;
   vec3f camPos = optixLaunchParams.camera.pos;
   vec3f onb[3];
@@ -55,11 +55,9 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray, bool shouldPrint) {
         isSil = true;
         silNum = i - silSpan.x + 1;
         silCount = silSpan.y - silSpan.x;
-        if (shouldPrint) printf("%d ", silNum);
         break;
       }
     }
-    if (shouldPrint) printf("\n");
 #else
     if (edge.adjFaceCount == 2) {
       isSil = dot(edge.n1, edge.v1 - camPos) * dot(edge.n2, edge.v2 - camPos) < 0;
