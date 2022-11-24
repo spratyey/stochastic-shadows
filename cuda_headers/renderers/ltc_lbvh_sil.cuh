@@ -54,6 +54,7 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
     selectedIdx[selectedEnd++] = ridx;
 
     vec3f color(0.f, 0.f, 0.f);
+#ifdef REJECTION_SAMPLING
     for (int i = 0; i < MAX_LTC_LIGHTS * 2; i++) {
         if (selectedEnd == optixLaunchParams.numMeshLights || selectedEnd == MAX_LTC_LIGHTS) {
             break;
@@ -78,18 +79,33 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
 #endif
 
         if (!found) {
-            print_pixel("%d ", ridx);
 #ifdef USE_BLOOM
             insertBF(bf, ridx);
 #endif
             selectedIdx[selectedEnd++] = ridx;
         }
     }
-    print_pixel("\n");
+#else
+    // Use better BVH sampling
+    float unused;
+    for (int i = 0; i < MAX_LTC_LIGHTS; i++) {
+        if (selectedEnd == optixLaunchParams.numMeshLights) {
+            break;
+        }
+
+        rand0 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
+
+        ridx = 0;
+        stochasticTraverseLBVHNoDup(optixLaunchParams.lightTlas, optixLaunchParams.lightTlasHeight, 0, si, bf, ridx, unused, rand0);
+        selectedIdx[selectedEnd++] = ridx;
+    }
+#endif
 
     for (int i = 0; i < selectedEnd; i++) {
+        print_pixel("%d ", selectedIdx[i]);
         color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, selectedIdx[i]);
     }
+    print_pixel("\n");
 
     return color;
 }

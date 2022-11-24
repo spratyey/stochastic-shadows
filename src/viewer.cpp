@@ -41,8 +41,9 @@ float RenderWindow::evaluateSAHForLightBVH(LightBVH& node, std::vector<TriLight>
 int RenderWindow::getLightBVHHeight(uint32_t nodeIdx, std::vector<LightBVH>& bvh)
 {
     LightBVH& node = bvh[nodeIdx];
-    if (node.primCount != 0)
+    if (node.primCount != 0) {
         return 0;
+    }
 
     int leftHeight = getLightBVHHeight(node.left, bvh);
     int rightHeight = getLightBVHHeight(node.right, bvh);
@@ -71,7 +72,8 @@ void RenderWindow::updateLightBVHNodeBounds(uint32_t nodeIdx, std::vector<LightB
 template <typename T>
 void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<T>& primitives)
 {
-    if (bvh[nodeIdx].primCount <= 2) {
+    // TODO: Make this more elegant
+    if (bvh[nodeIdx].primCount <= 1) {
         bvh[nodeIdx].flux = 0.f;
         for (int z = bvh[nodeIdx].primIdx; z < bvh[nodeIdx].primIdx + bvh[nodeIdx].primCount; z++) {
             bvh[nodeIdx].flux += primitives[z].flux;
@@ -85,8 +87,8 @@ void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bv
     vec3f extent = bvh[nodeIdx].aabbMax - bvh[nodeIdx].aabbMin;
 
     int axis = 0;
-    if (extent.y < extent.x) axis = 1;
-    if (extent.z < extent[axis]) axis = 2;
+    if (extent.y > extent.x) axis = 1;
+    if (extent.z > extent[axis]) axis = 2;
     float splitPos = bvh[nodeIdx].aabbMin[axis] + extent[axis] * 0.5f;
 
     int i = bvh[nodeIdx].primIdx;

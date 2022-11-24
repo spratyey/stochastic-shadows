@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "bf.cuh"
 
 struct BST {
     int data = -1;
@@ -57,7 +58,6 @@ float deterministicTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, S
 __device__
 void stochasticTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, int& selectedIdx, float& lightSelectionPdf, vec2f randVec) {
     selectedIdx = -1;
-    lightSelectionPdf = 1.f;
 
     float r1 = randVec.x;
     float r2 = randVec.y;
@@ -93,21 +93,108 @@ void stochasticTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, Surfa
         if (eps < leftImp) {
             nodeIdx = node.left;
             lightSelectionPdf *= leftImp;
-        }
-        else {
+        } else {
             nodeIdx = node.right;
             lightSelectionPdf *= rightImp;
         }
 
+        // Generate new random numbers
         if (r1 < leftImp)
             r1 = r1 / leftImp;
         else
             r1 = (r1 - leftImp) / rightImp;
 
+        // Generate new random numbers
         if (r2 < leftImp)
             r2 = r2 / leftImp;
         else
             r2 = (r2 - leftImp) / rightImp;
+    }
+}
+
+/* Sample light from BVH making sure that no light is sampled twice */
+/* Use only in silhoutte case */
+__device__
+void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, unsigned int *bf, int& selectedIdx, float& lightSelectionPdf, vec2f randVec) {
+    selectedIdx = -1;
+    lightSelectionPdf = 1.f;
+
+    float r1 = randVec.x;
+    float r2 = randVec.y;
+
+    int nodeIdx = rootNodeIdx;
+    // TODO (Critical): Figure out a way to make this dynamic and low memory
+    int stack[10];
+    bool boolStack[10];
+    int stackIdx = 0;
+    for (int i = 0; i <= bvhHeight; i++) {
+        LightBVH node = bvh[nodeIdx];
+
+        // If leaf
+        if (node.left == 0 && node.right == 0) {
+            if (node.primCount == 1) {
+                selectedIdx = node.primIdx;
+            }
+            // TODO: Figure out how to has primIdx
+            else {
+                selectedIdx = node.primIdx + round(r1 * (node.primCount-1));
+                lightSelectionPdf *= 1.f / node.primCount;
+            }
+            
+            boolStack[stackIdx] = true;
+            stack[stackIdx] = nodeIdx;
+
+            break;
+        }
+
+        LightBVH leftNode = bvh[node.left];
+        LightBVH rightNode = bvh[node.right];
+
+        float leftImp = leftNode.flux / pow(owl::length(leftNode.aabbMid - si.p), 2.f);
+        float rightImp = rightNode.flux / pow(owl::length(rightNode.aabbMid - si.p), 2.f);
+        float sum = leftImp + rightImp;
+
+        leftImp = leftImp / sum;
+        rightImp = rightImp / sum;
+
+        float eps = r2;
+        bool selected = false; // Select left node by default
+        if (eps > leftImp) {
+            selected = true;  // Select right node
+        }
+        
+        // Choose the other node if current chosen one is already exhausted + bookeeping
+        if (queryBF(bf, selected ? node.right : node.left)) {
+            selected = !selected;
+            boolStack[stackIdx] = true;
+        } else {
+            boolStack[stackIdx] = false;
+        }
+        stack[stackIdx] = nodeIdx;
+        stackIdx += 1;
+        
+        // Set selected nodeIdx
+        nodeIdx = selected ? node.right : node.left;
+
+        // Generate new random numbers
+        if (r1 < leftImp)
+            r1 = r1 / leftImp;
+        else
+            r1 = (r1 - leftImp) / rightImp;
+
+        // Generate new random numbers
+        if (r2 < leftImp)
+            r2 = r2 / leftImp;
+        else
+            r2 = (r2 - leftImp) / rightImp;
+    }
+
+    // Re-iterate over the stack to insert into bloom filter
+    for (int i = stackIdx; i > 0; i -= 1) {
+        if (boolStack[stackIdx] && !boolStack[stackIdx-1]) {
+            insertBF(bf, stack[stackIdx]);
+            break;
+        }
     }
 }
 
