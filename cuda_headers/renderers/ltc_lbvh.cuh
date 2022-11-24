@@ -46,9 +46,9 @@ vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, LCGRand& rng) {
     int selectedEnd = 0;
 
     int ridx = 0;
-    float rpdf = 0.f;
+    float _rpdf = 0.f;
 
-    selectFromLBVH(si, ridx, rpdf, rand0, rand1);
+    selectFromLBVH(si, ridx, _rpdf, rand0, rand1);
 #ifdef USE_BLOOM
     insertBF(bf, ridx);
 #else
@@ -64,9 +64,7 @@ vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, LCGRand& rng) {
         rand0 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
         rand1 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
 
-        ridx = 0;
-        rpdf = 0.f;
-        selectFromLBVH(si, ridx, rpdf, rand0, rand1);
+        selectFromLBVH(si, ridx, _rpdf, rand0, rand1);
 
         bool found = false;
 #ifdef USE_BLOOM

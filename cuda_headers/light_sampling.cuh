@@ -1,49 +1,15 @@
 #pragma once
 
-#include "common.cuh"
-#include "utils.cuh"
-#include "bvh.cuh"
-#include "bf.cuh"
-#include "ltc_utils.cuh"
-#include "lcg_random.cuh"
 #include "constants.cuh"
-// #include "light_sampling.cuh"
+#include "owl/common/math/vec.h"
+
+using namespace owl;
 
 __device__
-vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng, bool shouldPrint)
-{
-    vec3f normal_local(0.f, 0.f, 1.f);
-
-    vec2f rand0(lcg_randomf(rng), lcg_randomf(rng));
-    vec2f rand1(lcg_randomf(rng), lcg_randomf(rng));
-
-    // Backface
-    if (si.wo_local.z < 0.f)
-        return vec3f(0.f);
-
-    /* Analytic shading via LTCs */
-    vec3f ltc_mat[3], ltc_mat_inv[3];
-    float alpha = si.alpha;
-    float theta = sphericalTheta(si.wo_local);
-
-    float amplitude = 1.f;
-    fetchLtcMat(alpha, theta, ltc_mat, amplitude);
-    matrixInverse(ltc_mat, ltc_mat_inv);
-
-    vec3f iso_frame[3];
-
-    iso_frame[0] = si.wo_local;
-    iso_frame[0].z = 0.f;
-    iso_frame[0] = normalize(iso_frame[0]);
-    iso_frame[2] = normal_local;
-    iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
-    
+void sampleLights(int chosenLights[MAX_LTC_LIGHTS]) {
 #ifdef USE_BLOOM
     unsigned int bf[NUM_BITS] = { 0 };
     initBF(bf);
-    int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
-#else
-    int selectedIdx[MAX_LTC_LIGHTS * 2] = { -1 };
 #endif
     int selectedEnd = 0;
 
@@ -96,6 +62,4 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng, bool should
         color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, selectedIdx[i], shouldPrint);
     }
 #endif
-
-    return color;
 }

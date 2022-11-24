@@ -9,8 +9,7 @@ struct BST {
 };
 
 __device__
-float deterministicTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, vec3f point, int& idx)
-{
+float deterministicTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, vec3f point, int& idx) {
     float pdf = 1.f;
 
     int nodeIdx = rootNodeIdx;
@@ -56,9 +55,7 @@ float deterministicTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, S
 }
 
 __device__
-void stochasticTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, int& selectedIdx,
-                    float& lightSelectionPdf, vec2f randVec)
-{
+void stochasticTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, int& selectedIdx, float& lightSelectionPdf, vec2f randVec) {
     selectedIdx = -1;
     lightSelectionPdf = 1.f;
 
@@ -115,8 +112,7 @@ void stochasticTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, Surfa
 }
 
 __device__ 
-void selectFromLBVH(SurfaceInteraction& si, int& selectedIdx, float& lightSelectionPdf, vec2f rand0, vec2f rand1)
-{
+void selectFromLBVH(SurfaceInteraction& si, int& selectedIdx, float& lightSelectionPdf, vec2f rand0, vec2f rand1) {
     // First, traverse the light TLAS and retrive the mesh light
     float lightTlasPdf = 1.f;
     int lightTlasIdx = 0;
@@ -140,8 +136,7 @@ void selectFromLBVH(SurfaceInteraction& si, int& selectedIdx, float& lightSelect
 }
 
 __device__ 
-void selectFromLBVHSil(SurfaceInteraction& si, int& selectedIdx, float& lightSelectionPdf, vec2f rand0, vec2f rand1)
-{
+void selectFromLBVHSil(SurfaceInteraction& si, int& selectedIdx, vec2f rand0, vec2f rand1) {
     float lightTlasPdf = 1.f;
     int lightTlasIdx = 0;
     int lightTlasRootNodeIdx = 0;
@@ -150,12 +145,10 @@ void selectFromLBVHSil(SurfaceInteraction& si, int& selectedIdx, float& lightSel
         si, lightTlasIdx, lightTlasPdf, rand0);
 
     selectedIdx = lightTlasIdx;
-    lightSelectionPdf = lightTlasPdf;
 }
 
 __device__ 
-float pdfFromLBVH(SurfaceInteraction& si, vec3f point)
-{
+float pdfFromLBVH(SurfaceInteraction& si, vec3f point) {
     int meshIdx = 0;
     float tlasPdf = deterministicTraverseLBVH(optixLaunchParams.lightTlas, optixLaunchParams.lightTlasHeight, 
         0, si, point, meshIdx);
