@@ -46,6 +46,9 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
     int selectedEnd = 0;
 
     int ridx = 0;
+    vec3f color(0.f, 0.f, 0.f);
+
+#ifdef REJECTION_SAMPLING
 
     selectFromLBVHSil(si, ridx, rand0, rand1);
 #ifdef USE_BLOOM
@@ -53,8 +56,6 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
 #endif
     selectedIdx[selectedEnd++] = ridx;
 
-    vec3f color(0.f, 0.f, 0.f);
-#ifdef REJECTION_SAMPLING
     for (int i = 0; i < MAX_LTC_LIGHTS * 2; i++) {
         if (selectedEnd == optixLaunchParams.numMeshLights || selectedEnd == MAX_LTC_LIGHTS) {
             break;
@@ -99,7 +100,7 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
         stochasticTraverseLBVHNoDup(optixLaunchParams.lightTlas, optixLaunchParams.lightTlasHeight, 0, si, bf, ridx, unused, rand0);
         selectedIdx[selectedEnd++] = ridx;
     }
-#endif
+#endif // REJECTION_SAMPLING
 
     for (int i = 0; i < selectedEnd; i++) {
         print_pixel("%d ", selectedIdx[i]);

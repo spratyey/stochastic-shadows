@@ -163,13 +163,15 @@ void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, 
             selected = true;  // Select right node
         }
         
-        // Choose the other node if current chosen one is already exhausted + bookeeping
-        if (queryBF(bf, selected ? node.right : node.left)) {
+        // Choose other node if one is taken
+        bool leftFull = queryBF(bf, node.left);
+        bool rightFull = queryBF(bf, node.right);
+        if ((!selected && leftFull) || (selected && rightFull)) {
             selected = !selected;
-            boolStack[stackIdx] = true;
-        } else {
-            boolStack[stackIdx] = false;
         }
+        
+        // Book-keeping
+        boolStack[stackIdx] = leftFull || rightFull;
         stack[stackIdx] = nodeIdx;
         stackIdx += 1;
         
@@ -191,8 +193,8 @@ void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, 
 
     // Re-iterate over the stack to insert into bloom filter
     for (int i = stackIdx; i > 0; i -= 1) {
-        if (boolStack[stackIdx] && !boolStack[stackIdx-1]) {
-            insertBF(bf, stack[stackIdx]);
+        if (boolStack[i] && !boolStack[i-1]) {
+            insertBF(bf, stack[i]);
             break;
         }
     }
