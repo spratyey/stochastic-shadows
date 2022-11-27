@@ -214,23 +214,23 @@ Model* loadOBJ(const std::string& objFile, bool isLight)
                     edge.vert2 = model->vertices[edge.adjVert2];
                     switch (it.second.size()) {
                         case 0:
-                        // Isolated edge
-                        edge.adjFace1 = -1;
-                        edge.adjFace2 = -1;
-                        edge.numAdjFace = 0;
-                        break;
+                            // Isolated edge
+                            edge.adjFace1 = -1;
+                            edge.adjFace2 = -1;
+                            edge.numAdjFace = 0;
+                            break;
                         case 1:
-                        // Boundary edge
-                        edge.adjFace1 = it.second[0];
-                        edge.adjFace2 = -1;
-                        edge.numAdjFace = 1;
-                        break;
+                            // Boundary edge
+                            edge.adjFace1 = it.second[0];
+                            edge.adjFace2 = -1;
+                            edge.numAdjFace = 1;
+                            break;
                         default:
-                        // Non boundary edge (non manifold meshes not supported)
-                        edge.adjFace1 = it.second[0];
-                        edge.adjFace2 = it.second[1];
-                        edge.numAdjFace = 2;
-                        break;
+                            // Non boundary edge (non manifold meshes not supported)
+                            edge.adjFace1 = it.second[0];
+                            edge.adjFace2 = it.second[1];
+                            edge.numAdjFace = 2;
+                            break;
                     }
                     mesh->insertEdge(edge);
                 }

@@ -8,7 +8,7 @@ ConvexSilhouette::ConvexSilhouette(Mesh &polyhedron) : polyhedron(polyhedron) {
 
 	// TODO: Actually calculate bound or make it an param
 	// BSP bsp(planes, vec3f(-100), vec3f(100));
-	TwoPassBSP bsp(planes, vec3f(-100), vec3f(100));
+	TwoPassBSP bsp(planes, vec3f(-10000), vec3f(10000));
 
 	root = bsp.root;
 

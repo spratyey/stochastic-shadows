@@ -26,7 +26,7 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray) {
       vec3f d = normalize(edge.v2 - edge.v1);
       vec3f closePoint = edge.v1 + d * owl::clamp(dot(p - edge.v1, d), 0.f, length(edge.v2 - edge.v1));
       float perpDist = length(closePoint - p);
-      if (perpDist < 0.01) {
+      if (perpDist < 0.1) {
         edgeIdx = j;
         lightIdx = i;
         break;
@@ -79,7 +79,8 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray) {
       vec3f c1 = toFlip ? vec3f(1, 0, 0) : vec3f(0, 1, 0);
       vec3f c2 = vec3f(1, 1, 0) - c1;
 
-      return (v1Len / edgeLen * c1 + v2Len / edgeLen * c2) * ((float)silNum / (float)silCount);
+      // return (v1Len / edgeLen * c1 + v2Len / edgeLen * c2) * ((float)silNum / (float)silCount);
+      return (v1Len / edgeLen * c1 + v2Len / edgeLen * c2);
     } else {
       return vec3f(0, 0, 1);
     }

@@ -36,12 +36,18 @@ std::vector<int> Mesh::getSilhouetteEdges(vec3f point) {
 
 
     if (isSil) {
+      bool toFlip = !visible1;
+      if (edge.numAdjFace == 1) {
+        // Special case for boundary edges
+        toFlip = dot(edge.vert2 - edge.vert1, cross(f1.cg - edge.vert1, f1.n)) > 0;
+      }
+
       // Negative index denotes need to flip
       // For index 0, edges.size() denotes need to flip
-      if (i == 0 && !visible1) {
+      if (i == 0 && toFlip) {
         silEdges.push_back(edges.size());
       } else {
-        silEdges.push_back((visible1 ? 1 : -1) * i);
+        silEdges.push_back((toFlip ? -1 : 1) * i);
       }
     }
   }
