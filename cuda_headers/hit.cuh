@@ -51,8 +51,11 @@ OPTIX_CLOSEST_HIT_PROGRAM(triangleMeshCH)()
         si.diffuse = (vec3f) tex2D<float4>(self.diffuse_texture, si.uv.x, si.uv.y);
 
     si.alpha = self.alpha;
-    if (self.hasAlphaTexture)
-        si.alpha = tex2D<float4>(self.alpha_texture, si.uv.x, si.uv.y).x;
+    print_pixel("%d\n", self.hasAlphaTexture);
+    if (self.hasAlphaTexture) {
+        vec4f tmp = tex2D<float4>(self.alpha_texture, si.uv.x, si.uv.y);
+        si.alpha = length(vec3f(tmp.x, tmp.y, tmp.z));
+    }
     si.alpha = owl::clamp(si.alpha, 0.01f, 1.f);
 
     si.emit = self.emit;

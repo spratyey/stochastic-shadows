@@ -42,6 +42,8 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
     } else {
 #if RENDERER == DEBUG_DIFFUSE
         color = si.diffuse;
+#elif RENDERER == DEBUG_ALPHA
+        color = vec3f(si.alpha);
 #elif RENDERER == DEBUG_SIL 
         if (si.isLight) {
             color = colorEdges(si, ray);

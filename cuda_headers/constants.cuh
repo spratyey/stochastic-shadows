@@ -16,13 +16,15 @@
 
 // Renderer
 #define DEBUG_DIFFUSE 0
-#define DEBUG_SIL 1
-#define LTC_BASE 2
-#define LTC_SAMPLE_TRI 3
-#define LTC_SAMPLE_POLY 4
-#define DIRECT_LIGHTING 5
+#define DEBUG_ALPHA 1
+#define DEBUG_SIL 2
+#define LTC_BASE 3
+#define LTC_SAMPLE_TRI 4
+#define LTC_SAMPLE_POLY 5
+#define DIRECT_LIGHTING 6
 
 // #define RENDERER DEBUG_DIFFUSE
+// #define RENDERER DEBUG_ALPHA
 // #define RENDERER DEBUG_SIL
 // #define RENDERER LTC_BASE
 // #define RENDERER LTC_SAMPLE_TRI

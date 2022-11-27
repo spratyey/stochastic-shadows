@@ -198,7 +198,7 @@ Model* loadOBJ(const std::string& objFile, bool isLight)
                 mesh->alpha = (const float)materials[materialID].shininess;
                 mesh->alphaTextureID = loadTexture(model,
                     knownTextures,
-                    materials[materialID].specular_highlight_texname,
+                    materials[materialID].specular_texname,
                     modelDir);
 
                 mesh->emit = (const vec3f&)materials[materialID].diffuse;
