@@ -5,7 +5,7 @@
 #define EPS 1e-6
 
 // LTC parameters
-#define MAX_LTC_LIGHTS 20
+#define MAX_LTC_LIGHTS 10
 
 // Bloom Filter parameters
 #define NUM_HASH 4   	// Number of Hash functions to use
@@ -15,17 +15,22 @@
 // #define DEBUG
 
 // Renderer
-#define DEBUG_SIL 0
-#define LTC_BASE 1
-#define LTC_SAMPLE_TRI 2
-#define LTC_SAMPLE_POLY 3
+#define DEBUG_DIFFUSE 0
+#define DEBUG_SIL 1
+#define LTC_BASE 2
+#define LTC_SAMPLE_TRI 3
+#define LTC_SAMPLE_POLY 4
+#define DIRECT_LIGHTING 5
 
+// #define RENDERER DEBUG_DIFFUSE
 // #define RENDERER DEBUG_SIL
 // #define RENDERER LTC_BASE
 // #define RENDERER LTC_SAMPLE_TRI
 #define RENDERER LTC_SAMPLE_POLY
+// #define RENDERER DIRECT_LIGHTING
 
 // Features
 #define BSP_SIL
 #define USE_BLOOM
 // #define REJECTION_SAMPLING
+#define SAMPLES 64

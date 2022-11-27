@@ -14,6 +14,7 @@
 #include "silhouetteConvex.hpp"
 
 #include "common.cuh"
+#include "constants.cuh"
 
 using namespace owl;
 

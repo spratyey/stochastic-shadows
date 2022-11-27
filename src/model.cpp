@@ -184,20 +184,10 @@ Model* loadOBJ(const std::string& objFile, bool isLight)
 
                 // TODO: Check
                 vec3i tidx(mesh->texcoord.size(), mesh->texcoord.size() + 1, mesh->texcoord.size() + 2);
-                if (idx0.texcoord_index > 0)
-                    mesh->texcoord.push_back(texcoord_array[idx0.texcoord_index]);
-                else
-                    mesh->texcoord.push_back(1);
 
-                if (idx1.texcoord_index > 0)
-                    mesh->texcoord.push_back(texcoord_array[idx1.texcoord_index]);
-                else
-                    mesh->texcoord.push_back(1);
-
-                if (idx2.texcoord_index > 0)
-                    mesh->texcoord.push_back(texcoord_array[idx2.texcoord_index]);
-                else
-                    mesh->texcoord.push_back(1);
+                mesh->texcoord.push_back(texcoord_array[idx0.texcoord_index]);
+                mesh->texcoord.push_back(texcoord_array[idx1.texcoord_index]);
+                mesh->texcoord.push_back(texcoord_array[idx2.texcoord_index]);
 
                 mesh->diffuse = (const vec3f&)materials[materialID].diffuse;
                 mesh->diffuseTextureID = loadTexture(model,

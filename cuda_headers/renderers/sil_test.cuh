@@ -26,7 +26,7 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray) {
       vec3f d = normalize(edge.v2 - edge.v1);
       vec3f closePoint = edge.v1 + d * owl::clamp(dot(p - edge.v1, d), 0.f, length(edge.v2 - edge.v1));
       float perpDist = length(closePoint - p);
-      if (perpDist < 0.1) {
+      if (perpDist < 0.01) {
         edgeIdx = j;
         lightIdx = i;
         break;

@@ -7,6 +7,7 @@
 #include "renderers/ltc_baseline.cuh"
 #include "renderers/ltc_lbvh.cuh"
 #include "renderers/ltc_lbvh_sil.cuh"
+#include "renderers/direct_lighting.cuh"
 
 #include "lcg_random.cuh"
 #include "constants.cuh"
@@ -39,7 +40,9 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
     if (si.hit == false) {
         color = si.diffuse;
     } else {
-#if RENDERER == DEBUG_SIL 
+#if RENDERER == DEBUG_DIFFUSE
+        color = si.diffuse;
+#elif RENDERER == DEBUG_SIL 
         if (si.isLight) {
             color = colorEdges(si, ray);
         } else {
@@ -63,8 +66,14 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         } else {
             color = ltcDirectLightingLBVHSil(si, rng);
         }
+#elif RENDERER == DIRECT_LIGHTING
+        if (si.isLight) {
+            color = si.emit;
+        } else {
+            color = estimateDirectLighting(si, rng, 2);
+        }
 #endif
     }
 
-    self.frameBuffer[fbOfs] = owl::make_rgba(color);
+    self.frameBuffer[fbOfs] = owl::make_rgba(vec3f(linear_to_srgb(color.x), linear_to_srgb(color.y), linear_to_srgb(color.z)));
 }
