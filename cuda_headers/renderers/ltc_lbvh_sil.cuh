@@ -3,7 +3,7 @@
 #include "common.cuh"
 #include "utils.cuh"
 #include "bvh.cuh"
-#include "bf.cuh"
+#include "set.cuh"
 #include "ltc_utils.cuh"
 #include "lcg_random.cuh"
 #include "constants.cuh"
@@ -36,11 +36,6 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
     iso_frame[0] = normalize(iso_frame[0]);
     iso_frame[2] = normal_local;
     iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
-    
-#ifdef USE_BLOOM
-    unsigned int bf[NUM_BITS];
-    initBF(bf);
-#endif
 
     int selectedIdx[MAX_LTC_LIGHTS] = { -1 };
     int selectedEnd = 0;
@@ -48,41 +43,23 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
     int ridx = 0;
     vec3f color(0.f, 0.f, 0.f);
 
+    Set selectedSet;
+
 #ifdef REJECTION_SAMPLING
-
-    selectFromLBVHSil(si, ridx, rand0, rand1);
-#ifdef USE_BLOOM
-    insertBF(bf, ridx);
-#endif
-    selectedIdx[selectedEnd++] = ridx;
-
     for (int i = 0; i < MAX_LTC_LIGHTS * 2; i++) {
         if (selectedEnd == optixLaunchParams.numMeshLights || selectedEnd == MAX_LTC_LIGHTS) {
             break;
         }
 
         rand0 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
-        rand1 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
 
         ridx = 0;
-        selectFromLBVHSil(si, ridx, rand0, rand1);
+        selectFromLBVHSil(si, ridx, rand0);
 
-        bool found = false;
-#ifdef USE_BLOOM
-        found = queryBF(bf, ridx);
-#else
-        for (int j = 0; j < selectedEnd; j++) {
-            if (selectedIdx[j] == ridx) {
-                found = true;
-                break;
-            }
-        }
-#endif
+        bool found = selectedSet.exists(ridx);
 
         if (!found) {
-#ifdef USE_BLOOM
-            insertBF(bf, ridx);
-#endif
+            selectedSet.insert(ridx);
             selectedIdx[selectedEnd++] = ridx;
         }
     }
@@ -97,7 +74,7 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
         rand0 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
 
         ridx = 0;
-        stochasticTraverseLBVHNoDup(optixLaunchParams.lightTlas, optixLaunchParams.lightTlasHeight, 0, si, bf, ridx, unused, rand0);
+        stochasticTraverseLBVHNoDup(optixLaunchParams.lightTlas, optixLaunchParams.lightTlasHeight, 0, si, &selectedSet, ridx, unused, rand0);
         selectedIdx[selectedEnd++] = ridx;
     }
 #endif // REJECTION_SAMPLING

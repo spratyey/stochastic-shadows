@@ -1,7 +1,7 @@
 #pragma once
 
 #include "common.h"
-#include "bf.cuh"
+#include "set.cuh"
 
 struct BST {
     int data = -1;
@@ -115,7 +115,7 @@ void stochasticTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, Surfa
 /* Sample light from BVH making sure that no light is sampled twice */
 /* Use only in silhoutte case */
 __device__
-void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, unsigned int *bf, int& selectedIdx, float& lightSelectionPdf, vec2f randVec) {
+void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, Set *set, int& selectedIdx, float& lightSelectionPdf, vec2f randVec) {
     selectedIdx = -1;
     lightSelectionPdf = 1.f;
 
@@ -162,8 +162,8 @@ void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, 
         }
         
         // Choose other node if one is taken
-        bool leftFull = queryBF(bf, node.left);
-        bool rightFull = queryBF(bf, node.right);
+        bool leftFull = set->exists(node.left);
+        bool rightFull = set->exists(node.right);
         if ((!selected && leftFull) || (selected && rightFull)) {
             selected = !selected;
         }
@@ -191,7 +191,7 @@ void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, 
             r2 = (r2 - leftImp) / rightImp;
     }
 
-    insertBF(bf, toInsert);
+    set->insert(toInsert);
 }
 
 __device__ 
@@ -219,7 +219,7 @@ void selectFromLBVH(SurfaceInteraction& si, int& selectedIdx, float& lightSelect
 }
 
 __device__ 
-void selectFromLBVHSil(SurfaceInteraction& si, int& selectedIdx, vec2f rand0, vec2f rand1) {
+void selectFromLBVHSil(SurfaceInteraction& si, int& selectedIdx, vec2f rand0) {
     float lightTlasPdf = 1.f;
     int lightTlasIdx = 0;
     int lightTlasRootNodeIdx = 0;
