@@ -123,10 +123,9 @@ void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, 
     float r2 = randVec.y;
 
     int nodeIdx = rootNodeIdx;
+    bool prevNodeStatus = false;
+    int toInsert = -1;
     // TODO (Critical): Figure out a way to make this dynamic and low memory
-    int stack[10];
-    bool boolStack[10];
-    int stackIdx = 0;
     for (int i = 0; i <= bvhHeight; i++) {
         LightBVH node = bvh[nodeIdx];
 
@@ -141,9 +140,9 @@ void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, 
                 lightSelectionPdf *= 1.f / node.primCount;
             }
             
-            boolStack[stackIdx] = true;
-            stack[stackIdx] = nodeIdx;
-
+            if (!prevNodeStatus) {
+                toInsert = nodeIdx;
+            }
             break;
         }
 
@@ -171,9 +170,11 @@ void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, 
         }
         
         // Book-keeping
-        boolStack[stackIdx] = leftFull || rightFull;
-        stack[stackIdx] = nodeIdx;
-        stackIdx += 1;
+        bool curStatus = leftFull || rightFull;
+        if (curStatus && !prevNodeStatus) {
+            toInsert = nodeIdx;
+        }
+        prevNodeStatus = curStatus;
         
         // Set selected nodeIdx
         nodeIdx = selected ? node.right : node.left;
@@ -191,13 +192,7 @@ void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, 
             r2 = (r2 - leftImp) / rightImp;
     }
 
-    // Re-iterate over the stack to insert into bloom filter
-    for (int i = stackIdx; i > 0; i -= 1) {
-        if (boolStack[i] && !boolStack[i-1]) {
-            insertBF(bf, stack[i]);
-            break;
-        }
-    }
+    insertBF(bf, toInsert);
 }
 
 __device__ 
