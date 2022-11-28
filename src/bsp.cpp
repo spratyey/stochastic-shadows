@@ -10,12 +10,15 @@ BSP::BSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBound) {
 
   // TODO: Implement custom lambda to consider epsilon
   // TODO: Remove this because it's being done in TwoPassBSP
-  std::set<vec4f> planeSet;
+  // std::set<vec4f> planeSet;
+  // for (auto &plane : planes) {
+  //   if (planeSet.find(plane) == planeSet.end()) {
+  //     this->planes.push_back(plane);
+  //     planeSet.insert(plane);
+  //   }
+  // }
   for (auto &plane : planes) {
-    if (planeSet.find(plane) == planeSet.end()) {
-      this->planes.push_back(plane);
-      planeSet.insert(plane);
-    }
+    this->planes.push_back(plane);
   }
 
   leaves.push_back((minBound + maxBound) / 2);

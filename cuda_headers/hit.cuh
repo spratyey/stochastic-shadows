@@ -39,6 +39,7 @@ OPTIX_CLOSEST_HIT_PROGRAM(triangleMeshCH)()
     // TODO: Fix this to work with multiple bounces
     si.wo = owl::normalize( optixLaunchParams.camera.pos - si.p );
     si.uv = barycentricInterpolate(self.texCoord, primitiveIndices);
+    // TODO: Change this to truncf if needed
     si.uv.u = abs(fmodf(si.uv.u, 1.0));
     si.uv.v = abs(fmodf(si.uv.v, 1.0));
     si.n_geom = normalize( barycentricInterpolate(self.normal, primitiveIndices) );

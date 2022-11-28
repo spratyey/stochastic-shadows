@@ -3,6 +3,7 @@
 #include "owl/common/math/vec.h"
 #include "bsp.hpp"
 #include "utils.cuh"
+#include "common.h"
 #include <set>
 
 using namespace owl;
@@ -18,7 +19,7 @@ class TwoPassBSP {
     std::vector<vec3f> leaves;
     std::vector<BSPNode> nodes;
     int leafCount = 0;
-    int averageDepth;
+    int averageDepth = 0;
     int root;
 
     TwoPassBSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBound);

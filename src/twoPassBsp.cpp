@@ -1,7 +1,13 @@
 #include "twoPassBsp.hpp"
 
 TwoPassBSP::TwoPassBSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBound) {
-    // TODO: Implement custom lambda to consider epsilon
+    auto cmp = [](vec4f a, vec4f b) {
+        float tmp1 = abs(1 - dot(vec3f(a.x, a.y, a.z), vec3f(b.x, b.y, b.z)));
+        float tmp2 = abs(a.w - b.w);
+        // TODO: Verify that this doesn't impact anything else
+        return tmp1 < 1e-2 && tmp2 < 1e-2;
+    };
+    // std::set<vec4f, decltype(cmp)> planeSet(cmp);
     std::set<vec4f> planeSet;
     for (auto &plane : planes) {
         if (planeSet.find(plane) == planeSet.end()) {
@@ -21,6 +27,9 @@ TwoPassBSP::TwoPassBSP(std::vector<vec4f> &planes, vec3f minBound, vec3f maxBoun
     std::pair<int, int> planeSpan = std::make_pair(0, this->planes.size());
     std::pair<int, int> pointSpan = std::make_pair(0, this->points.size());
     root = makeNode(planeSpan, pointSpan);
+
+    averageDepth /= leafCount;
+    std::cout << "Average depth: " << averageDepth << "\n";
 
     delete firstPass;
 }

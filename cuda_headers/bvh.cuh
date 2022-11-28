@@ -125,7 +125,6 @@ void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, 
     int nodeIdx = rootNodeIdx;
     bool prevNodeStatus = false;
     int toInsert = -1;
-    // TODO (Critical): Figure out a way to make this dynamic and low memory
     for (int i = 0; i <= bvhHeight; i++) {
         LightBVH node = bvh[nodeIdx];
 
