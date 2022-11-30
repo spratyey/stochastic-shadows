@@ -23,7 +23,7 @@ using namespace owl;
 struct RenderWindow : public owl::viewer::OWLViewer {
     RenderWindow(Scene& scene, vec2i resolution, bool interactive, char *ptx);
 
-    void initialize(Scene& scene, char *ptx);
+    void initialize(Scene& scene, char *ptx, bool interactive);
 
     /*! gets called whenever the viewer needs us to re-render out widget */
     void render() override;
@@ -82,7 +82,7 @@ struct RenderWindow : public owl::viewer::OWLViewer {
     float lerp = 0.5f;
 
     // Denoiser stuff
-    bool denoiserOn = true;
+    bool denoiserOn = false;
     DeviceMemory denoisedBuffer;
     DeviceMemory denoiserScratch;
     DeviceMemory denoiserState;

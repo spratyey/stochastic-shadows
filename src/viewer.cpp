@@ -4,7 +4,7 @@ RenderWindow::RenderWindow(Scene& scene, vec2i resolution, bool interactive, cha
     : owl::viewer::OWLViewer("LTC Many Lights", resolution, interactive, false)
 {
     this->currentScene = scene;
-    this->initialize(scene, ptx);
+    this->initialize(scene, ptx, interactive);
 }
 
 void RenderWindow::setRendererType(RendererType type)
@@ -143,7 +143,7 @@ void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bv
     bvh[nodeIdx].flux = (bvh[bvh[nodeIdx].left].flux + bvh[bvh[nodeIdx].right].flux) / 2.0f;
 }
 
-void RenderWindow::initialize(Scene& scene, char *ptx)
+void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
 {
     // Initialize IMGUI
     IMGUI_CHECKVERSION();
@@ -343,6 +343,7 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
         {"pixelId", OWL_INT2, OWL_OFFSETOF(LaunchParams, pixelId)},
         // Screen size
         {"bufferSize", OWL_INT2, OWL_OFFSETOF(LaunchParams, bufferSize)},
+        {"interactive", OWL_BOOL, OWL_OFFSETOF(LaunchParams, interactive)},
         {nullptr}
     };
 
@@ -401,6 +402,8 @@ void RenderWindow::initialize(Scene& scene, char *ptx)
     OWLBuffer bspBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(BSPNode), bspNodes.size(), bspNodes.data());
     owlParamsSetBuffer(this->launchParams, "bsp", bspBuffer);
 #endif
+
+    owlParamsSet1b(this->launchParams, "interactive", interactive);
 
     // ====================================================
     // Scene setup (scene geometry and materials)

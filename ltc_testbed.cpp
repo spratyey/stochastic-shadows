@@ -16,7 +16,7 @@ int main(int argc, char** argv)
     bool isInteractive = false;
 
     std::string currentScene;
-    std::string defaultScene = "/home/cvit/ishaan/OptixRenderer/scenes/scene_configs/silhoutte_test.json";
+    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/bistro.json";
 
     if (argc == 2)
         currentScene = std::string(argv[1]);
@@ -45,8 +45,8 @@ int main(int argc, char** argv)
             scene.cameras[0].up,
             owl::viewer::toDegrees(acosf(scene.cameras[0].cosFovy)));
         win.enableFlyMode();
-        win.enableInspectMode(owl::box3f(scene.model->bounds.lower, scene.model->bounds.upper));
         win.setWorldScale(length(scene.model->bounds.span()));
+        win.enableInspectMode(owl::box3f(scene.model->bounds.lower, scene.model->bounds.upper));
 
         // ##################################################################
         // now that everything is ready: launch it ....

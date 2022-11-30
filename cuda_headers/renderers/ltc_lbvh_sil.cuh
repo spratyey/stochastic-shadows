@@ -35,7 +35,7 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
     iso_frame[0].z = 0.f;
     iso_frame[0] = normalize(iso_frame[0]);
     iso_frame[2] = normal_local;
-    iso_frame[1] = normalize(owl::cross(iso_frame[2], iso_frame[0]));
+    iso_frame[1] = normalize(cross(iso_frame[2], iso_frame[0]));
 
     int selectedIdx[MAX_LTC_LIGHTS] = { -1 };
     int selectedEnd = 0;

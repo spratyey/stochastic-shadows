@@ -4,8 +4,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(OptixRenderer VERSION 0.1 LANGUAGES C CXX CUDA)
 
-set(OptiX_ROOT_DIR "/home/cvit/ishaan/optix")
-set(Optix_INCLUDE "/home/cvit/ishaan/optix/include")
+set(OptiX_ROOT_DIR "/home/aakashkt/optix")
+set(Optix_INCLUDE "/home/aakashkt/optix/include")
 
 set(owl_dir ${PROJECT_SOURCE_DIR}/owl/)
 add_subdirectory(${owl_dir} EXCLUDE_FROM_ALL)

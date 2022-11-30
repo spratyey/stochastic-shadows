@@ -79,8 +79,8 @@ vec3f colorEdges(SurfaceInteraction& si, RadianceRay ray) {
       vec3f c1 = toFlip ? vec3f(1, 0, 0) : vec3f(0, 1, 0);
       vec3f c2 = vec3f(1, 1, 0) - c1;
 
-      // return (v1Len / edgeLen * c1 + v2Len / edgeLen * c2) * ((float)silNum / (float)silCount);
-      return (v1Len / edgeLen * c1 + v2Len / edgeLen * c2);
+      return (v1Len / edgeLen * c1 + v2Len / edgeLen * c2) * ((float)silNum / (float)silCount);
+      // return (v1Len / edgeLen * c1 + v2Len / edgeLen * c2);
     } else {
       return vec3f(0, 0, 1);
     }

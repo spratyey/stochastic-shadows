@@ -53,8 +53,7 @@ OPTIX_CLOSEST_HIT_PROGRAM(triangleMeshCH)()
 
     si.alpha = self.alpha;
     if (self.hasAlphaTexture) {
-        vec4f tmp = tex2D<float4>(self.alpha_texture, si.uv.x, si.uv.y);
-        si.alpha = length(vec3f(tmp.x, tmp.y, tmp.z));
+        si.alpha = tex2D<float4>(self.alpha_texture, si.uv.x, si.uv.y).y;
     }
     si.alpha = owl::clamp(si.alpha, 0.01f, 1.f);
 

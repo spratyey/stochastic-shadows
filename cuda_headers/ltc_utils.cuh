@@ -141,7 +141,7 @@ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_m
 
 
 __device__
-vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightIdx) {
+vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], vec3f mat2[3], int selectedLightIdx) {
     MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
     vec3f color(0);
     BSPNode node = getSilEdges(selectedLightIdx, si.p);
@@ -179,6 +179,9 @@ vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], int selectedLightId
         lv1 = normalize(apply_mat(mat, lv1));
         lv2 = normalize(apply_mat(mat, lv2));
 
+        lv1 = normalize(apply_mat(mat2, lv1));
+        lv2 = normalize(apply_mat(mat2, lv2));
+
         // Clip to upper hemisphere
         bool lv1BelowEquator = lv1.z < 0;
         bool lv2BelowEquator = lv2.z < 0;
@@ -215,10 +218,15 @@ vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f lt
 {
     vec3f diffuseShading(0, 0, 0);
     vec3f ggxShading(0, 0, 0);
+    vec3f identity[3]; 
+    identity[0] = vec3f(1, 0, 0);
+    identity[1] = vec3f(0, 1, 0);
+    identity[2] = vec3f(0, 0, 1);
     MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
 #ifdef BSP_SIL
-    diffuseShading = integrateOverSil(si, iso_frame, selectedLightIdx);
-    ggxShading = integrateOverSil(si, ltc_mat_inv, selectedLightIdx);
+    diffuseShading = integrateOverSil(si, identity, iso_frame, selectedLightIdx);
+    ggxShading = integrateOverSil(si, iso_frame, ltc_mat_inv, selectedLightIdx);
+    // ggxShading = vec3f(0);
 #else
     int edgeStartIdx = meshLight.spans.edgeSpan.x;
     int edgeEndIdx = meshLight.spans.edgeSpan.y;

@@ -11,11 +11,31 @@
 // TODO: Override this if build is not debug mode
 #define print_pixel(...)                                                   					\
 {																							\
-    const vec2i pixelId = owl::getLaunchIndex();											\
-    if (optixLaunchParams.pixelId.x == pixelId.x && 										\
+	const vec2i pixelId = owl::getLaunchIndex();											\
+	if (optixLaunchParams.pixelId.x == pixelId.x && 										\
 		optixLaunchParams.pixelId.y == optixLaunchParams.bufferSize.y - pixelId.y && 		\
 		optixLaunchParams.clicked) 															\
-        printf( __VA_ARGS__ );                                                              \
+		printf( __VA_ARGS__ );                                                              \
+}
+
+#define print_pixel(...)																	\
+{																							\
+	const vec2i pixelId = owl::getLaunchIndex();											\
+	if (optixLaunchParams.pixelId.x == pixelId.x && 										\
+		optixLaunchParams.pixelId.y == optixLaunchParams.bufferSize.y - pixelId.y && 		\
+		optixLaunchParams.clicked) 															\
+		printf( __VA_ARGS__ );																\
+}
+
+#define print_pixel_exact(pixelX, pixelY, ...)												\
+{																							\
+	const vec2i pixelId = owl::getLaunchIndex();											\
+	if (pixelX == pixelId.x && pixelY == pixelId.y && 										\
+		(optixLaunchParams.clicked || !optixLaunchParams.interactive))						\
+	{ 																						\
+	 	printf("Pixel ID: %d %d ", pixelX, pixelY);											\
+		printf( __VA_ARGS__ );																\
+	}																						\
 }
 
 using namespace owl;
@@ -97,6 +117,7 @@ struct TriLight {
 
 struct LaunchParams {
 	bool clicked;
+	bool interactive;
 	vec2i pixelId;
 	vec2i bufferSize;
 
@@ -176,13 +197,13 @@ struct AABB {
 	vec3f bmax = vec3f(- 1e30f);
 
 	__inline__ __device__ __host__
-    void grow( vec3f p ) { bmin = owl::min( bmin, p ), bmax = owl::min( bmax, p ); }
+	void grow( vec3f p ) { bmin = owl::min( bmin, p ), bmax = owl::min( bmax, p ); }
 
 	__inline__ __device__ __host__ float area() 
-    { 
-        vec3f e = bmax - bmin; // box extent
-        return e.x * e.y + e.y * e.z + e.z * e.x; 
-    }
+	{ 
+		vec3f e = bmax - bmin; // box extent
+		return e.x * e.y + e.y * e.z + e.z * e.x; 
+	}
 };
 
 struct SurfaceInteraction {
