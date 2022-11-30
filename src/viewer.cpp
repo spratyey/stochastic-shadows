@@ -629,13 +629,145 @@ void RenderWindow::render()
 
     owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
     owlParamsSet1b(this->launchParams, "clicked", false);
+
+    OptixDenoiserParams denoiserParams;
+#if OPTIX_VERSION > 70500
+    denoiserParams.denoiseAlpha = OPTIX_DENOISER_ALPHA_MODE_ALPHA_AS_AOV;
+#endif
+    denoiserParams.hdrIntensity = (CUdeviceptr)0;
+    denoiserParams.blendFactor = 0.0f;
+
+    // -------------------------------------------------------
+    OptixImage2D inputLayer;
+    inputLayer.data = (CUdeviceptr)this->fbPointer;
+    /// Width of the image (in pixels)
+    
+    inputLayer.width = this->fbSize.x;;
+    /// Height of the image (in pixels)
+    inputLayer.height = this->fbSize.y;
+    /// Stride between subsequent rows of the image (in bytes).
+    inputLayer.rowStrideInBytes = this->fbSize.x * sizeof(float4);
+    /// Stride between subsequent pixels of the image (in bytes).
+    /// For now, only 0 or the value that corresponds to a dense packing of pixels (no gaps) is supported.
+    inputLayer.pixelStrideInBytes = sizeof(float4);
+    /// Pixel format.
+    inputLayer.format = OPTIX_PIXEL_FORMAT_FLOAT4;
+
+    // -------------------------------------------------------
+    OptixImage2D outputLayer;
+    outputLayer.data = (CUdeviceptr)denoisedBuffer.get();
+    /// Width of the image (in pixels)
+    outputLayer.width = this->fbSize.x;
+    /// Height of the image (in pixels)
+    outputLayer.height = this->fbSize.y;
+    /// Stride between subsequent rows of the image (in bytes).
+    outputLayer.rowStrideInBytes = this->fbSize.x * sizeof(float4);
+    /// Stride between subsequent pixels of the image (in bytes).
+    /// For now, only 0 or the value that corresponds to a dense packing of pixels (no gaps) is supported.
+    outputLayer.pixelStrideInBytes = sizeof(float4);
+    /// Pixel format.
+    outputLayer.format = OPTIX_PIXEL_FORMAT_FLOAT4;
+    // -------------------------------------------------------
+
+        // --------------------------------------------------------------------
+    if (denoiserOn) {
+    #if OPTIX_VERSION >= 70300
+      OptixDenoiserGuideLayer denoiserGuideLayer = {};
+
+      OptixDenoiserLayer denoiserLayer = {};
+      denoiserLayer.input = inputLayer;
+      denoiserLayer.output = outputLayer;
+
+      OPTIX_CHECK(optixDenoiserInvoke(myDenoiser,
+                                /*stream*/0,
+                                &denoiserParams,
+                                (CUdeviceptr)denoiserState.get(),
+                                denoiserState.size(),
+                                &denoiserGuideLayer,
+                                &denoiserLayer,1,
+                                /*inputOffsetX*/0,
+                                /*inputOffsetY*/0,
+                                (CUdeviceptr)denoiserScratch.get(),
+                                denoiserScratch.size()));
+    #else
+      OPTIX_CHECK(optixDenoiserInvoke(myDenoiser,
+                                /*stream*/0,
+                                &denoiserParams,
+                                (CUdeviceptr)denoiserState.get(),
+                                denoiserState.size(),
+                                &inputLayer,1,
+                                /*inputOffsetX*/0,
+                                /*inputOffsetY*/0,
+                                &outputLayer,
+                                (CUdeviceptr)denoiserScratch.get(),
+                                denoiserScratch.size()));
+    #endif
+    // denoisedBuffer.download((void *)this->fbPointer);
+    } else {
+      cudaMemcpy((void*)outputLayer.data,(void*)inputLayer.data,
+                 outputLayer.width*outputLayer.height*sizeof(float4),
+                 cudaMemcpyDeviceToDevice);
+    }
+    cudaDeviceSynchronize(); 
 }
 
 void RenderWindow::resize(const vec2i& newSize)
 {
     // Resize framebuffer, and other ops (OWL::Viewer ops)
     OWLViewer::resize(newSize);
+
     owlParamsSet2i(this->launchParams, "bufferSize", (const owl2i&)newSize);
+    LOG("RESIZE!")
+
+    if (myDenoiser) {
+      OPTIX_CHECK(optixDenoiserDestroy(myDenoiser));
+    }
+
+    // ---------------------------------------------------------------------------------
+    OptixDeviceContext optixContext = (OptixDeviceContext)owlContextGetOptixContext(context, 0);
+    OptixDenoiserOptions denoiserOptions = {};
+    #if OPTIX_VERSION >= 70300
+      OPTIX_CHECK(optixDenoiserCreate(optixContext, OPTIX_DENOISER_MODEL_KIND_LDR,
+                    &denoiserOptions,&myDenoiser));
+    #else
+      denoiserOptions.inputKind = OPTIX_DENOISER_INPUT_RGB;
+
+    #if OPTIX_VERSION < 70100
+    // these only exist in 7.0, not 7.1
+      denoiserOptions.pixelFormat = OPTIX_PIXEL_FORMAT_UCHAR4;
+    #endif
+
+      OPTIX_CHECK(optixDenoiserCreate(optixContext,&denoiserOptions,&myDenoiser));
+      OPTIX_CHECK(optixDenoiserSetModel(myDenoiser,OPTIX_DENOISER_MODEL_KIND_LDR,NULL,0));
+    #endif
+
+    // .. then compute and allocate memory resources for the myDenoiser
+    OptixDenoiserSizes denoiserReturnSizes;
+    OPTIX_CHECK(optixDenoiserComputeMemoryResources(myDenoiser,newSize.x,newSize.y,
+                                                    &denoiserReturnSizes));
+
+    #if OPTIX_VERSION < 70100
+      denoiserScratch.alloc(denoiserReturnSizes.recommendedScratchSizeInBytes);
+    #else
+      denoiserScratch.alloc(max(denoiserReturnSizes.withOverlapScratchSizeInBytes,
+                            denoiserReturnSizes.withoutOverlapScratchSizeInBytes));
+    #endif
+      denoiserState.alloc(denoiserReturnSizes.stateSizeInBytes);
+
+    this->fbSize = newSize;
+
+    // ------------------------------------------------------------------------------------
+    // resize denoisedBuffer
+    denoisedBuffer.alloc(fbSize.x * fbSize.y * sizeof(float4));
+
+    // -----------------------------------------------------------------------------------
+    OPTIX_CHECK(optixDenoiserSetup(myDenoiser,0,
+                                   newSize.x,newSize.y,
+                                   (CUdeviceptr)denoiserState.get(),
+                                   denoiserState.size(),
+                                   (CUdeviceptr)denoiserScratch.get(),
+                                   denoiserScratch.size()));
+
     // Perform camera move i.e. set new camera parameters, and set SBT to be updated
     this->cameraChanged();
 }

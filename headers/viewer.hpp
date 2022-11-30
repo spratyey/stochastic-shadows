@@ -2,7 +2,9 @@
 
 // OWL
 #include "owl/owl.h"
+#include "owl/DeviceMemory.h"
 #include "owl/common/math/vec.h"
+#include "owl/helper/optix.h"
 #include "owlViewer/OWLViewer.h"
 
 // ImGui
@@ -78,6 +80,13 @@ struct RenderWindow : public owl::viewer::OWLViewer {
 
     // Random controls
     float lerp = 0.5f;
+
+    // Denoiser stuff
+    bool denoiserOn = true;
+    DeviceMemory denoisedBuffer;
+    DeviceMemory denoiserScratch;
+    DeviceMemory denoiserState;
+    OptixDenoiser myDenoiser = nullptr;
 
     RendererType rendererType;
 };
