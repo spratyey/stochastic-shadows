@@ -201,7 +201,8 @@ Model* loadOBJ(const std::string& objFile, bool isLight)
                     materials[materialID].specular_texname,
                     modelDir);
 
-                mesh->emit = (const vec3f&)materials[materialID].diffuse;
+                // mesh->emit = (const vec3f&)materials[materialID].diffuse;
+                mesh->emit = (const vec3f&)materials[materialID].emission / 15;
             }
 
             // Create all edges in the mesh

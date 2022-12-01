@@ -50,6 +50,11 @@ OPTIX_CLOSEST_HIT_PROGRAM(triangleMeshCH)()
     si.diffuse = self.diffuse;
     if (self.hasDiffuseTexture)
         si.diffuse = (vec3f) tex2D<float4>(self.diffuse_texture, si.uv.x, si.uv.y);
+    
+    // Alpha channel
+    if (si.diffuse.w) {
+        print_pixel("%f\n", si.diffuse.w);
+    }
 
     si.alpha = self.alpha;
     if (self.hasAlphaTexture) {

@@ -92,10 +92,12 @@ struct LightEdge {
 	vec3f cg2;
 };
 
+// TODO: Move to bvh.*
 struct LightBVH {
 	vec3f aabbMin = vec3f(1e30f);
 	vec3f aabbMax = vec3f(-1e30f);
 	vec3f aabbMid = vec3f(0.f);
+	vec3f aabbMidEmit = vec3f(0.0f);
 	float flux = 0.f;
 
 	uint32_t left = 0, right = 0;

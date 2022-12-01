@@ -33,6 +33,6 @@
 
 // Features
 #define BSP_SIL
-// #define USE_BLOOM
+#define USE_BLOOM
 // #define REJECTION_SAMPLING
-#define SAMPLES 64
+#define SAMPLES 1

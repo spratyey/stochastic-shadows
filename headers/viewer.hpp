@@ -17,6 +17,8 @@
 
 #include "common.cuh"
 #include "constants.cuh"
+#include "light.hpp"
+#include "types.hpp"
 
 using namespace owl;
 
@@ -63,7 +65,8 @@ struct RenderWindow : public owl::viewer::OWLViewer {
 
     OWLParams launchParams;
 
-    int accumId;
+    OWLBuffer accumBuffer{ 0 };
+    int accumId = 0;
 
     Scene currentScene;
     std::vector<SceneCamera> recordedCameras;

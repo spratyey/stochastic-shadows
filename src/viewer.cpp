@@ -12,136 +12,6 @@ void RenderWindow::setRendererType(RendererType type)
     this->rendererType = type;
 }
 
-float RenderWindow::evaluateSAHForLightBVH(LightBVH& node, std::vector<TriLight>& primitives, int axis, float pos)
-{
-    AABB leftBox, rightBox;
-    int leftCount = 0, rightCount = 0;
-
-    for (uint32_t i = node.primIdx; i < node.primCount; i++) {
-        TriLight& light = primitives[i];
-
-        if (light.cg[axis] < pos) {
-            leftCount++;
-            leftBox.grow(light.v1);
-            leftBox.grow(light.v2);
-            leftBox.grow(light.v3);
-        }
-        else {
-            rightCount++;
-            rightBox.grow(light.v1);
-            rightBox.grow(light.v2);
-            rightBox.grow(light.v3);
-        }
-    }
-
-    float cost = leftCount * leftBox.area() + rightCount * rightBox.area();
-    return cost > 0.f ? cost : 1e30f;
-}
-
-int RenderWindow::getLightBVHHeight(uint32_t nodeIdx, std::vector<LightBVH>& bvh)
-{
-    LightBVH& node = bvh[nodeIdx];
-    if (node.primCount != 0) {
-        return 0;
-    }
-
-    int leftHeight = getLightBVHHeight(node.left, bvh);
-    int rightHeight = getLightBVHHeight(node.right, bvh);
-
-    return max(leftHeight, rightHeight) + 1;
-}
-
-template <typename T>
-void RenderWindow::updateLightBVHNodeBounds(uint32_t nodeIdx, std::vector<LightBVH> &bvh, std::vector<T> &primitives)
-{
-    bvh[nodeIdx].aabbMax = vec3f(-1e30f);
-    bvh[nodeIdx].aabbMin = vec3f(1e30f);
-
-    for (uint32_t i = bvh[nodeIdx].primIdx; i < bvh[nodeIdx].primIdx + bvh[nodeIdx].primCount; i++) {
-        T& prim = primitives[i];
-
-        bvh[nodeIdx].aabbMin = owl::min(bvh[nodeIdx].aabbMin, prim.aabbMin);
-        bvh[nodeIdx].aabbMax = owl::max(bvh[nodeIdx].aabbMax, prim.aabbMax);
-        bvh[nodeIdx].flux += prim.flux;
-    }
-
-    bvh[nodeIdx].aabbMid = (bvh[nodeIdx].aabbMin + bvh[nodeIdx].aabbMax) * 0.5f;
-    bvh[nodeIdx].flux /= bvh[nodeIdx].primCount;
-}
-
-template <typename T>
-void RenderWindow::subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector<T>& primitives)
-{
-    // TODO: Make this more elegant
-    if (bvh[nodeIdx].primCount <= 1) {
-        bvh[nodeIdx].flux = 0.f;
-        for (int z = bvh[nodeIdx].primIdx; z < bvh[nodeIdx].primIdx + bvh[nodeIdx].primCount; z++) {
-            bvh[nodeIdx].flux += primitives[z].flux;
-        }
-
-        bvh[nodeIdx].flux /= bvh[nodeIdx].primCount;
-    
-        return;
-    }
-    
-    vec3f extent = bvh[nodeIdx].aabbMax - bvh[nodeIdx].aabbMin;
-
-    int axis = 0;
-    if (extent.y > extent.x) axis = 1;
-    if (extent.z > extent[axis]) axis = 2;
-    float splitPos = bvh[nodeIdx].aabbMin[axis] + extent[axis] * 0.5f;
-
-    int i = bvh[nodeIdx].primIdx;
-    int j = i + bvh[nodeIdx].primCount - 1;
-    while (i <= j) {
-        if (primitives[i].cg[axis] < splitPos) {
-            i++;
-        }
-        else {
-            T iItem = primitives[i];
-            T jItem = primitives[j];
-
-            primitives[i] = jItem;
-            primitives[j] = iItem;
-
-            j--;
-        }
-    }
-
-    int leftCount = i - bvh[nodeIdx].primIdx;
-    if (leftCount == 0 || leftCount == bvh[nodeIdx].primCount) {
-        bvh[nodeIdx].flux = 0.f;
-        for (int z = bvh[nodeIdx].primIdx; z < bvh[nodeIdx].primIdx + bvh[nodeIdx].primCount; z++) {
-            bvh[nodeIdx].flux += primitives[z].flux;
-        }
-
-        bvh[nodeIdx].flux /= bvh[nodeIdx].primCount;
-
-        return;
-    }
-
-    bvh[nodeIdx].left = bvh.size();
-    LightBVH leftNode;
-    leftNode.primCount = leftCount;
-    leftNode.primIdx = bvh[nodeIdx].primIdx;
-    bvh.push_back(leftNode);
-
-    bvh[nodeIdx].right = bvh.size();
-    LightBVH rightNode;
-    rightNode.primCount = bvh[nodeIdx].primCount - leftCount;
-    rightNode.primIdx = i;
-    bvh.push_back(rightNode);
-
-    bvh[nodeIdx].primCount = 0;
-
-    this->updateLightBVHNodeBounds<T>(bvh[nodeIdx].left, bvh, primitives);
-    this->updateLightBVHNodeBounds<T>(bvh[nodeIdx].right, bvh, primitives);
-
-    this->subdivideLightBVH<T>(bvh[nodeIdx].left, bvh, primitives);
-    this->subdivideLightBVH<T>(bvh[nodeIdx].right, bvh, primitives);
-
-    bvh[nodeIdx].flux = (bvh[bvh[nodeIdx].left].flux + bvh[bvh[nodeIdx].right].flux) / 2.0f;
-}
 
 void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
 {
@@ -159,151 +29,25 @@ void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
     context = owlContextCreate(nullptr, 1);
     module = owlModuleCreate(context, ptx);
 
+    accumBuffer = owlDeviceBufferCreate(context, OWL_FLOAT4, 1, nullptr);
+    owlBufferResize(accumBuffer, this->getWindowSize().x * this->getWindowSize().y);
+
     owlContextSetRayTypeCount(context, 2);
 
-    // ====================================================
-    // Area lights setup (Assume triangular area lights)
-    // ====================================================
-    LOG("Building individual light mesh BVH (BLAS) ...");
-
-    Model* triLights = scene.triLights;
-
-    int totalTri = 0;
-#ifdef BSP_SIL
-    std::vector<BSPNode> bspNodes;
-    std::vector<int> silhouettes;
-#endif
-    for (auto light : triLights->meshes) {
-        MeshLight meshLight;
-        meshLight.flux = 0.f;
-        meshLight.triIdx = this->triLightList.size();
-        meshLight.triStartIdx = totalTri;
-        meshLight.spans.edgeSpan = vec3i(lightEdgeList.size());
-
-        // Calculate silhouette BSP 
-#ifdef BSP_SIL
-        ConvexSilhouette silhouette(*light);
-        meshLight.spans.silSpan = vec3i(silhouettes.size());
-        meshLight.spans.bspNodeSpan = vec3i(bspNodes.size());
-        meshLight.bspRoot = silhouette.root;
-        meshLight.avgEmit = vec3f(0);
-        silhouettes.insert(silhouettes.end(), silhouette.silhouettes.begin(), silhouette.silhouettes.end());
-        bspNodes.insert(bspNodes.end(), silhouette.nodes.begin(), silhouette.nodes.end());
-#endif
-
-        int numTri = 0;
-        float totalArea = 0;
-        for (auto index : light->index) {
-            // First, setup data foran individual triangle light source
-            TriLight triLight;
-
-            triLight.v1 = light->vertex[index.x];
-            triLight.v2 = light->vertex[index.y];
-            triLight.v3 = light->vertex[index.z];
-
-            triLight.cg = (triLight.v1 + triLight.v2 + triLight.v3) / 3.f;
-            triLight.normal = normalize(light->normal[index.x] + light->normal[index.y] + light->normal[index.z]);
-            triLight.area = 0.5f * length(cross(triLight.v1 - triLight.v2, triLight.v3 - triLight.v2));
-
-            triLight.emit = light->emit;
-            triLight.flux = 3.1415926f * triLight.area * (triLight.emit.x+triLight.emit.y+triLight.emit.z) / 3.f;
-
-            triLight.aabbMin = owl::min(triLight.aabbMin, triLight.v1);
-            triLight.aabbMin = owl::min(triLight.aabbMin, triLight.v2);
-            triLight.aabbMin = owl::min(triLight.aabbMin, triLight.v3);
-
-            triLight.aabbMax = owl::max(triLight.aabbMax, triLight.v1);
-            triLight.aabbMax = owl::max(triLight.aabbMax, triLight.v2);
-            triLight.aabbMax = owl::max(triLight.aabbMax, triLight.v3);
-
-            triLightList.push_back(triLight); // append to a global list of all triangle light sources
-            
-            // Next, update the AABB and flux of current light mesh
-            meshLight.aabbMin = owl::min(meshLight.aabbMin, triLight.aabbMin);
-            meshLight.aabbMax = owl::max(meshLight.aabbMax, triLight.aabbMax);
-            meshLight.flux += triLight.flux;
-            
-            // Set average emmitance weighted by triangle size
-            meshLight.avgEmit += triLight.area * light->emit;
-
-            // Keep track of number of triangles in the current light mesh
-            numTri++;
-
-            // Keep track of total triangle area
-            totalArea += triLight.area;
-        }
-
-        meshLight.avgEmit /= totalArea;
-
-        // TODO: Move to a common edge representation similar to Face
-        for (auto edge : light->edges) {
-            LightEdge lightEdge;
-            lightEdge.adjFaces.x = edge.adjFace1;
-            lightEdge.n1 = triLightList[totalTri + lightEdge.adjFaces.x].normal;
-            lightEdge.cg1 = triLightList[totalTri + lightEdge.adjFaces.x].cg;
-            if (edge.numAdjFace == 2) {
-                lightEdge.adjFaces.y = edge.adjFace2;
-                lightEdge.n2 = triLightList[totalTri + lightEdge.adjFaces.y].normal;
-                lightEdge.cg2 = triLightList[totalTri + lightEdge.adjFaces.y].cg;
-            } else {
-                lightEdge.adjFaces.y = -1;
-            }
-
-            lightEdge.v1 = edge.vert1;
-            lightEdge.v2 = edge.vert2;
-            lightEdge.adjFaceCount = edge.numAdjFace;
-
-            lightEdgeList.push_back(lightEdge);
-        }
-                    
-        totalTri += numTri;
-
-        // Insert spans 
-        meshLight.triCount = numTri;
-        meshLight.spans.edgeSpan.y = lightEdgeList.size();
-#ifdef BSP_SIL
-        meshLight.spans.silSpan.y = silhouettes.size();
-        meshLight.spans.bspNodeSpan.y = bspNodes.size();
-        meshLight.spans.edgeSpan.z = meshLight.spans.edgeSpan.y - meshLight.spans.edgeSpan.x;
-        meshLight.spans.silSpan.z = meshLight.spans.silSpan.y - meshLight.spans.silSpan.x;
-        meshLight.spans.bspNodeSpan.z = meshLight.spans.bspNodeSpan.y - meshLight.spans.bspNodeSpan.x;
-#endif
-
-        meshLight.cg = (meshLight.aabbMin + meshLight.aabbMax) / 2.f;
-
-        // Construct BVH for the current light mesh
-        int rootNodeIdx = this->lightBlas.size(); // Root node index (BLAS since it consists of actual triangles)
-        LightBVH root;
-        root.left = root.right = 0;
-        root.primIdx = meshLight.triIdx;
-        root.primCount = meshLight.triCount;
-        this->lightBlas.push_back(root);
-
-        this->updateLightBVHNodeBounds<TriLight>(rootNodeIdx, this->lightBlas, this->triLightList);
-        this->subdivideLightBVH<TriLight>(rootNodeIdx, this->lightBlas, this->triLightList);
-
-
-        // Finally, set current light mesh parameters and addto a global list of all light meshes
-        meshLight.bvhIdx = rootNodeIdx;
-        meshLight.bvhHeight = this->getLightBVHHeight(rootNodeIdx, this->lightBlas);
-        meshLightList.push_back(meshLight);
-    }
-
-    // Build the TLAS on light meshes (NOT on triangles)
-    // Note, this is build on 'meshLightList', not on 'triLightList'
-    LOG("Building BVH on meshes (TLAS) ...");
-
-    LightBVH root;
-    root.left = root.right = 0;
-    root.primIdx = 0;
-    root.primCount = meshLightList.size();
-    this->lightTlas.push_back(root);
-
-    this->updateLightBVHNodeBounds<MeshLight>(0, this->lightTlas, this->meshLightList);
-    this->subdivideLightBVH<MeshLight>(0, this->lightTlas, this->meshLightList);
-    this->lightTlasHeight = this->getLightBVHHeight(0, this->lightTlas);
-
-    LOG("All light BVH built");
+    // Load light information
+    LightInfo lightInfo;
+    auto lightInformationPath = scene.json["light_information"];
+    std::cout << scene.json["light_information"] << std::endl;
+    std::ifstream in_file(lightInformationPath, std::ios::binary);
+    lightInfo.read(in_file);
+    this->triLightList = lightInfo.triLightList;
+    this->meshLightList = lightInfo.meshLightList;
+    this->lightTlas = lightInfo.lightTlas;
+    this->lightBlas = lightInfo.lightBlas;
+    this->lightTlasHeight = lightInfo.lightTlasHeight;
+    this->lightEdgeList = lightInfo.lightEdgeList;
+    std::vector<BSPNode> bspNodes = lightInfo.bspNodes;
+    std::vector<int> silhouettes = lightInfo.silhouettes;
 
     // ====================================================
     // Launch Parameters setup
@@ -365,7 +109,6 @@ void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
     owlParamsSetTexture(this->launchParams, "ltc_2", ltc2);
     owlParamsSetTexture(this->launchParams, "ltc_3", ltc3);
 
-
     // Upload the <actual> triangle data for all area lights
     OWLBuffer triLightsBuffer = owlDeviceBufferCreate(context, OWL_USER_TYPE(TriLight), triLightList.size(), triLightList.data());
     owlParamsSetBuffer(this->launchParams, "triLights", triLightsBuffer);
@@ -392,6 +135,10 @@ void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
     // Set screen size
     vec2i bufferSize(this->fbSize.x, this->fbSize.y);
     owlParamsSet2i(this->launchParams, "bufferSize", (const owl2i&)bufferSize);
+
+    // Upload accumulation buffer and ID
+    owlParamsSet1i(this->launchParams, "accumId", this->accumId);
+    owlParamsSetBuffer(this->launchParams, "accumBuffer", this->accumBuffer);
 
 #ifdef BSP_SIL
     // Upload the precomputed silhouettes
@@ -633,6 +380,13 @@ void RenderWindow::render()
     owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
     owlParamsSet1b(this->launchParams, "clicked", false);
 
+#if RENDERER == DIRECT_LIGHTING
+    owlParamsSet1i(this->launchParams, "accumId", this->accumId);
+
+    owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
+    accumId++;
+#endif
+
     OptixDenoiserParams denoiserParams;
 #if OPTIX_VERSION > 70500
     denoiserParams.denoiseAlpha = OPTIX_DENOISER_ALPHA_MODE_ALPHA_AS_AOV;
@@ -719,6 +473,10 @@ void RenderWindow::resize(const vec2i& newSize)
     // Resize framebuffer, and other ops (OWL::Viewer ops)
     OWLViewer::resize(newSize);
 
+    // Resize accumulation buffer, and set to launch params
+    owlBufferResize(accumBuffer, newSize.x * newSize.y);
+    owlParamsSetBuffer(this->launchParams, "accumBuffer", this->accumBuffer);
+
     owlParamsSet2i(this->launchParams, "bufferSize", (const owl2i&)newSize);
     LOG("RESIZE!")
 
@@ -777,6 +535,9 @@ void RenderWindow::resize(const vec2i& newSize)
 
 void RenderWindow::cameraChanged()
 {
+    // Reset accumulation buffer, to restart MC sampling
+    this->accumId = 0;
+
     const vec3f lookFrom = camera.getFrom();
     const vec3f lookAt = camera.getAt();
     const vec3f lookUp = camera.getUp();

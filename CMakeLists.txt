@@ -33,8 +33,6 @@ embed_ptx(
     owl::owl
   SOURCES
     cuda/ltc_testbed.cu
-
-    # ${CUDA_HEADERS}
 )
 
 add_executable(ltc_many_lights 
@@ -44,6 +42,11 @@ add_executable(ltc_many_lights
 
 add_executable(ltc_testbed
   "ltc_testbed.cpp"
+  ${SRC_FILES}
+)
+
+add_executable(generate_bsp
+  "generate_bsp.cpp"
   ${SRC_FILES}
 )
 
@@ -59,8 +62,14 @@ target_link_libraries(ltc_many_lights
 
 target_link_libraries(ltc_testbed
     PRIVATE
-    # Compiled PTX
+    # compiled ptx
     ptx_code_ltc_testbed
+    # OWL libs
+    owl::owl owl_viewer
+)
+
+target_link_libraries(generate_bsp
+    PRIVATE
     # OWL libs
     owl::owl owl_viewer
 )

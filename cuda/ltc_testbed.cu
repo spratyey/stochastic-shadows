@@ -44,6 +44,7 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         color = si.diffuse;
 #elif RENDERER == DEBUG_ALPHA
         color = vec3f(si.alpha);
+        print_pixel("%f\n", si.alpha);
 #elif RENDERER == DEBUG_SIL 
         if (si.isLight) {
             color = colorEdges(si, ray);
@@ -74,6 +75,12 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         } else {
             color = estimateDirectLighting(si, rng, 2);
         }
+
+        if (optixLaunchParams.accumId > 0)
+            color = color + vec3f(optixLaunchParams.accumBuffer[fbOfs]);
+
+        optixLaunchParams.accumBuffer[fbOfs] = vec4f(color, 1.f);
+        color = (1.f / (optixLaunchParams.accumId + 1)) * color;
 #endif
     }
 
