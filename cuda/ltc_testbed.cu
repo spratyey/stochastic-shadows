@@ -5,8 +5,8 @@
 #include "constants.cuh"
 #include "renderers/sil_test.cuh"
 #include "renderers/ltc_baseline.cuh"
-#include "renderers/ltc_lbvh.cuh"
-#include "renderers/ltc_lbvh_sil.cuh"
+#include "renderers/ltc_lbvh_poly.cuh"
+#include "renderers/ltc_lbvh_tri.cuh"
 #include "renderers/direct_lighting.cuh"
 
 #include "lcg_random.cuh"
@@ -61,13 +61,13 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         if (si.isLight) {
             color = si.emit;
         } else {
-            color = ltcDirectLightingLBVH(si, rng);
+            color = ltcDirectLightingLBVHTri(si, rng);
         }
 #elif RENDERER == LTC_SAMPLE_POLY
         if (si.isLight) {
             color = si.emit;
         } else {
-            color = ltcDirectLightingLBVHSil(si, rng);
+            color = ltcDirectLightingLBVHPoly(si, rng);
         }
 #elif RENDERER == DIRECT_LIGHTING
         if (si.isLight) {

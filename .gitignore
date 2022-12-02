@@ -10,3 +10,5 @@ test_bf
 *.blend
 *.blend1
 scenes/
+**/*.png
+**/*.mtl

@@ -73,6 +73,7 @@ void subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector
 
         bvh[nodeIdx].flux /= bvh[nodeIdx].primCount;
 
+        std::cout << bvh[nodeIdx].primCount << std::endl;
         return;
     }
 

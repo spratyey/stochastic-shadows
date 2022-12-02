@@ -37,7 +37,6 @@ void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
     // Load light information
     LightInfo lightInfo;
     auto lightInformationPath = scene.json["light_information"];
-    std::cout << scene.json["light_information"] << std::endl;
     std::ifstream in_file(lightInformationPath, std::ios::binary);
     lightInfo.read(in_file);
     this->triLightList = lightInfo.triLightList;

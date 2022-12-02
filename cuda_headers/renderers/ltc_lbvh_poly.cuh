@@ -9,7 +9,7 @@
 #include "constants.cuh"
 
 __device__
-vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
+vec3f ltcDirectLightingLBVHPoly(SurfaceInteraction& si, LCGRand& rng)
 {
     vec3f normal_local(0.f, 0.f, 1.f);
 
@@ -81,7 +81,15 @@ vec3f ltcDirectLightingLBVHSil(SurfaceInteraction& si, LCGRand& rng)
 
     for (int i = 0; i < selectedEnd; i++) {
         print_pixel("%d ", selectedIdx[i]);
+#ifdef SIL
         color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, selectedIdx[i]);
+#else
+        MeshLight light = optixLaunchParams.meshLights[selectedIdx[i]];
+        for (int j = light.triIdx; j < light.triIdx + light.triCount; j += 1) {
+            color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
+                optixLaunchParams.triLights[j]);
+        }
+#endif
     }
     print_pixel("\n");
 

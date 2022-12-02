@@ -1,11 +1,11 @@
 #pragma once
 
 // Constants
-#define PI 3.1415926f
+#define PI 3.14159265359f
 #define EPS 1e-6
 
 // LTC parameters
-#define MAX_LTC_LIGHTS 10
+#define MAX_LTC_LIGHTS 3
 
 // Bloom Filter parameters
 #define NUM_HASH 4   	// Number of Hash functions to use
@@ -31,8 +31,10 @@
 #define RENDERER LTC_SAMPLE_POLY
 // #define RENDERER DIRECT_LIGHTING
 
-// Features
-#define BSP_SIL
-#define USE_BLOOM
-// #define REJECTION_SAMPLING
 #define SAMPLES 1
+
+// Features
+// #define SIL                     // Whether to use integrate over silhouette or over all triangles of polygon
+#define BSP_SIL                 // Whether to use BSP to calculate silhouette
+// #define USE_BLOOM            // Whether to use bloom filters for set
+// #define REJECTION_SAMPLING   // Whether to use rejection sampling or unique sampling

@@ -18,15 +18,6 @@
 		printf( __VA_ARGS__ );                                                              \
 }
 
-#define print_pixel(...)																	\
-{																							\
-	const vec2i pixelId = owl::getLaunchIndex();											\
-	if (optixLaunchParams.pixelId.x == pixelId.x && 										\
-		optixLaunchParams.pixelId.y == optixLaunchParams.bufferSize.y - pixelId.y && 		\
-		optixLaunchParams.clicked) 															\
-		printf( __VA_ARGS__ );																\
-}
-
 #define print_pixel_exact(pixelX, pixelY, ...)												\
 {																							\
 	const vec2i pixelId = owl::getLaunchIndex();											\

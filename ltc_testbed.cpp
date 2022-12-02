@@ -67,8 +67,15 @@ int main(int argc, char** argv)
             win.resize(resolution);
 
             auto start = std::chrono::high_resolution_clock::now();
-            // exit(0);
+
+            win.accumId = 0;
+#if RENDERER == DIRECT_LIGHTING
+            for (int sample = 0; sample < scene.spp; sample++) {
+                win.render();
+            }
+#else
             win.render();
+#endif
 
             auto finish = std::chrono::high_resolution_clock::now();
 

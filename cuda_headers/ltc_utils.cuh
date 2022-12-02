@@ -208,7 +208,11 @@ vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], vec3f mat2[3], int 
     }
     float angle = atan2(clippingSum.y, clippingSum.x);
 
-    color = (integral + fmodf(angle + 2*PI, 2*PI)) / (2*PI);
+    angle = fmodf(angle + 2*PI, 2*PI);
+    if (abs(2*PI - angle) < 1e-3) {
+        angle = 0.0f;
+    }
+    color = (integral + angle) / (2*PI);
 
     return color;
 }

@@ -136,6 +136,7 @@ void LightInfo::initialize(Scene &scene) {
     updateLightBVHNodeBounds<MeshLight>(0, this->lightTlas, this->meshLightList);
     subdivideLightBVH<MeshLight>(0, this->lightTlas, this->meshLightList);
     this->lightTlasHeight = getLightBVHHeight(0, this->lightTlas);
+    std::cout << this->lightTlasHeight << std::endl;
 
     LOG("All light BVH built");
 }

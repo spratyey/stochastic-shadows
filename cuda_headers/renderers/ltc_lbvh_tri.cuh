@@ -11,7 +11,7 @@
 
 
 __device__
-vec3f ltcDirectLightingLBVH(SurfaceInteraction& si, LCGRand& rng) {
+vec3f ltcDirectLightingLBVHTri(SurfaceInteraction& si, LCGRand& rng) {
     vec3f normal_local(0.f, 0.f, 1.f);
 
     vec2f rand0(lcg_randomf(rng), lcg_randomf(rng));
