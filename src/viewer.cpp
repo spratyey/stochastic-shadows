@@ -7,11 +7,6 @@ RenderWindow::RenderWindow(Scene& scene, vec2i resolution, bool interactive, cha
     this->initialize(scene, ptx, interactive);
 }
 
-void RenderWindow::setRendererType(RendererType type)
-{
-    this->rendererType = type;
-}
-
 
 void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
 {

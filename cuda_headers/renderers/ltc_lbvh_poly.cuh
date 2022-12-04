@@ -40,11 +40,14 @@ vec3f ltcDirectLightingLBVHPoly(SurfaceInteraction& si, LCGRand& rng)
     int selectedIdx[MAX_LTC_LIGHTS] = { -1 };
     int selectedEnd = 0;
 
+#ifdef SIL
+    BSPNode sils[MAX_LTC_LIGHTS];
+#endif
+
     int ridx = 0;
     vec3f color(0.f, 0.f, 0.f);
 
     Set selectedSet;
-
 #ifdef REJECTION_SAMPLING
     for (int i = 0; i < MAX_LTC_LIGHTS * 2; i++) {
         if (selectedEnd == optixLaunchParams.numMeshLights || selectedEnd == MAX_LTC_LIGHTS) {
@@ -66,8 +69,9 @@ vec3f ltcDirectLightingLBVHPoly(SurfaceInteraction& si, LCGRand& rng)
 #else
     // Use better BVH sampling
     float unused;
+    int elemsChosen = 0;
     for (int i = 0; i < MAX_LTC_LIGHTS; i++) {
-        if (selectedEnd == optixLaunchParams.numMeshLights) {
+        if (selectedEnd == optixLaunchParams.numMeshLights || elemsChosen > MAX_ELEMS) {
             break;
         }
 
@@ -75,14 +79,24 @@ vec3f ltcDirectLightingLBVHPoly(SurfaceInteraction& si, LCGRand& rng)
 
         ridx = 0;
         stochasticTraverseLBVHNoDup(optixLaunchParams.lightTlas, optixLaunchParams.lightTlasHeight, 0, si, &selectedSet, ridx, unused, rand0);
-        selectedIdx[selectedEnd++] = ridx;
+        selectedIdx[selectedEnd] = ridx;
+#ifdef SIL
+        BSPNode node = getSilEdges(ridx, si.p);
+        elemsChosen += node.silSpan.y - node.silSpan.x;
+        sils[selectedEnd] = node;
+#else
+        MeshLight light = optixLaunchParams.meshLights[selectedIdx[i]];
+        elemsChosen += light.triCount;
+#endif
+        selectedEnd += 1;
     }
 #endif // REJECTION_SAMPLING
 
+    print_pixel("%d %d\n", selectedEnd, elemsChosen);
     for (int i = 0; i < selectedEnd; i++) {
         print_pixel("%d ", selectedIdx[i]);
 #ifdef SIL
-        color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, selectedIdx[i]);
+        color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, sils[i], selectedIdx[i]);
 #else
         MeshLight light = optixLaunchParams.meshLights[selectedIdx[i]];
         for (int j = light.triIdx; j < light.triIdx + light.triCount; j += 1) {

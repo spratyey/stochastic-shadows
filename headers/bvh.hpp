@@ -1,6 +1,5 @@
 #pragma once
 
-#include "common.cuh"
 #include "types.hpp"
 
 float evaluateSAHForLightBVH(LightBVH& node, std::vector<TriLight>& primitives, int axis, float pos);

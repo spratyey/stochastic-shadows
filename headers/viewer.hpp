@@ -42,7 +42,6 @@ struct RenderWindow : public owl::viewer::OWLViewer {
 
     void mouseButtonLeft(const vec2i &where, bool pressed) override;
     void customKey(char key, const vec2i& pos) override;
-    void setRendererType(RendererType type);
 
     int getLightBVHHeight(uint32_t nodeIdx, std::vector<LightBVH>& bvh);
     float evaluateSAHForLightBVH(LightBVH& node, std::vector<TriLight>& primitives, int axis, float pos);
@@ -90,6 +89,4 @@ struct RenderWindow : public owl::viewer::OWLViewer {
     DeviceMemory denoiserScratch;
     DeviceMemory denoiserState;
     OptixDenoiser myDenoiser = nullptr;
-
-    RendererType rendererType;
 };

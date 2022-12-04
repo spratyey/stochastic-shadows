@@ -1,13 +1,8 @@
 #pragma once
 
-#include "common.h"
+#include "common.cuh"
 #include "set.cuh"
-
-struct BST {
-    int data = -1;
-    int left = -1;
-    int right = -1;
-};
+#include "types.hpp"
 
 __device__
 float deterministicTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, vec3f point, int& idx) {

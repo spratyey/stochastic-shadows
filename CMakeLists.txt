@@ -17,14 +17,8 @@ include_directories("owl/3rdParty")
 
 file(GLOB SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
-embed_ptx(
-  OUTPUT_TARGET
-    ptx_code_ltc_many_lights
-  PTX_LINK_LIBRARIES
-    owl::owl
-  SOURCES
-    cuda/ltc_many_lights_cuda.cu
-)
+set(test_dir ${PROJECT_SOURCE_DIR}/test/)
+add_subdirectory(${test_dir})
 
 embed_ptx(
   OUTPUT_TARGET
@@ -33,11 +27,6 @@ embed_ptx(
     owl::owl
   SOURCES
     cuda/ltc_testbed.cu
-)
-
-add_executable(ltc_many_lights 
-  "ltc_many_lights.cpp"
-  ${SRC_FILES}
 )
 
 add_executable(ltc_testbed
@@ -49,16 +38,6 @@ add_executable(generate_bsp
   "generate_bsp.cpp"
   ${SRC_FILES}
 )
-
-# add_executable(testbed "testbed.cpp")
-
-target_link_libraries(ltc_many_lights 
-    PRIVATE
-    # Compiled PTX
-    ptx_code_ltc_many_lights
-    # OWL libs
-    owl::owl owl_viewer
- )
 
 target_link_libraries(ltc_testbed
     PRIVATE

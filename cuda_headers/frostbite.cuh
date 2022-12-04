@@ -43,8 +43,8 @@ vec3f evaluate_brdf(vec3f wo, vec3f wi, vec3f diffuse_color, float alpha) {
     vec3f brdf = vec3f(0.0f);
 
     // Diffuse + specular
-    brdf += diffuse_color / PI;
-    brdf += GGX(alpha, wo, wi);
+    brdf += 0.5f*diffuse_color / PI;
+    brdf += 0.5*GGX(alpha, wo, wi);
 
     return brdf;
 }

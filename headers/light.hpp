@@ -12,6 +12,8 @@
 #include "bvh.hpp"
 #include "silhouetteConvex.hpp"
 
+using namespace owl;
+
 class LightInfo {
     public:
         // Vectors to dump

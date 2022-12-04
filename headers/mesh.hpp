@@ -2,7 +2,6 @@
 
 #include "owl/common/math/vec.h"
 #include "types.hpp"
-#include <cstdint>
 #include <vector>
 
 using namespace owl;
