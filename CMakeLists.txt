@@ -2,6 +2,19 @@ cmake_minimum_required(VERSION 3.12)
 set(CMAKE_BUILD_TYPE_INIT "Release")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Build Types
+# - Release: Optimized production code
+# - RelWithDebInfo: Debugger symbols for host code and print statements in device code
+# - Debug: Debugger symbols for both host and device code (very slow)
+
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG_BUILD")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG_BUILD")
+set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -DDEBUG_BUILD")
+
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -DDEBUG_BUILD")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DDEBUG_BUILD")
+set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "${CMAKE_CUDA_FLAGS_RELWITHDEBINFO} -DDEBUG_BUILD")
+
 project(OptixRenderer VERSION 0.1 LANGUAGES C CXX CUDA)
 
 set(OptiX_ROOT_DIR "/home/aakashkt/optix")
