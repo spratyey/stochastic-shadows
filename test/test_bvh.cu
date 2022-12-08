@@ -52,7 +52,7 @@ void stochasticTraverseLBVH(LightBVH* bvh, vec2f rand, int& selectedIdx, vec3f p
         rightImp = rightImp / sum;
 
         float eps = r2;
-        if (eps < 0.5) {
+        if (eps < leftImp) {
             nodeIdx = node.left;
         } else {
             nodeIdx = node.right;
@@ -160,7 +160,32 @@ void stochasticTraverseLBVHNoDup(LightBVH *bvh, Set *set, vec2f rand, int &selec
 }
 
 __global__
-void test_bvh_no_dup(LightBVH *bvh) {
+void test_bvh_no_dup_rejection(LightBVH *bvh, int *chosen) {
+    Set selectedSet;
+    int selectedIdx;
+    int selectedLights[MAX_LTC_LIGHTS];
+    int selectedCount = 0;
+    LCGRand rng = get_rng(10007, make_uint2(blockIdx.x, threadIdx.x), make_uint2(gridDim.x, blockDim.x));
+    vec3f rand = vec3f(lcg_randomf(rng), lcg_randomf(rng), lcg_randomf(rng));
+    vec3f p = boundMin + rand * (boundMax - boundMin);
+    for (int i = 0; i < 2*MAX_LTC_LIGHTS; i++) {
+        if (selectedCount == MAX_LTC_LIGHTS) {
+            break;
+        }
+        stochasticTraverseLBVH(bvh, vec2f(lcg_randomf(rng), lcg_randomf(rng)), selectedIdx, vec3f(0));
+        if (!selectedSet.exists(selectedIdx)) {
+            selectedSet.insert(selectedIdx);
+            selectedLights[selectedCount++] = selectedIdx;
+        }
+    }
+    int offset = (threadIdx.x + blockDim.x*blockIdx.x)*MAX_LTC_LIGHTS;
+    for (int i = 0; i < selectedCount; i++) {
+        chosen[offset+i] = selectedLights[i];
+    }
+}
+
+__global__
+void test_bvh_no_dup(LightBVH *bvh, int *chosen) {
     Set selectedSet;
     int selectedIdx;
     int selectedLights[MAX_LTC_LIGHTS];
@@ -173,16 +198,14 @@ void test_bvh_no_dup(LightBVH *bvh) {
         stochasticTraverseLBVHNoDup(bvh, &selectedSet, vec2f(lcg_randomf(rng), lcg_randomf(rng)), selectedIdx, vec3f(0), checkHeight);
         selectedLights[selectedCount++] = selectedIdx;
     }
-#ifdef DEBUG_BUILD
+    int offset = (threadIdx.x + blockDim.x*blockIdx.x)*MAX_LTC_LIGHTS;
     for (int i = 0; i < selectedCount; i++) {
-        print(0, 0, "%d ", selectedLights[i]);
+        chosen[offset+i] = selectedLights[i];
     }
-    printf(0, 0, "\n");
-#endif
 }
 
 __global__
-void test_bvh_dup(LightBVH *bvh) {
+void test_bvh_dup(LightBVH *bvh, int *chosen) {
     int selectedIdx;
     int selectedLights[MAX_LTC_LIGHTS];
     int selectedCount = 0;
@@ -193,12 +216,10 @@ void test_bvh_dup(LightBVH *bvh) {
         stochasticTraverseLBVH(bvh, vec2f(lcg_randomf(rng), lcg_randomf(rng)), selectedIdx, vec3f(0));
         selectedLights[selectedCount++] = selectedIdx;
     }
-#ifdef DEBUG_BUILD
+    int offset = (threadIdx.x + blockDim.x*blockIdx.x)*MAX_LTC_LIGHTS;
     for (int i = 0; i < selectedCount; i++) {
-        print(0, 0, "%d ", selectedLights[i]);
+        chosen[offset+i] = selectedLights[i];
     }
-    printf(0, 0, "\n");
-#endif
 }
 
 int main() {
@@ -273,6 +294,14 @@ int main() {
 
     updateLightBVHNodeBounds<MeshLight>(0, lightTlas, meshLightList);
     subdivideLightBVH<MeshLight>(0, lightTlas, meshLightList);
+
+    std::vector<LightBVH> reorderLightTlas;
+    reorderLightBVH(lightTlas, reorderLightTlas);
+
+    for (int i = 0; i < lightTlas.size(); i++) {
+        lightTlas[i] = reorderLightTlas[i];
+    }
+
     int lightTlasHeight = getLightBVHHeight(0, lightTlas);
 
     std::cout << "Build BVH with " << lightTlas.size() << " nodes" << std::endl;
@@ -281,9 +310,19 @@ int main() {
     std::cout << "Scene Bounds (min): " << lightTlas[0].aabbMin.x << " " << lightTlas[0].aabbMin.y << " " << lightTlas[0].aabbMin.z << std::endl;
     std::cout << "Scene Bounds (max): " << lightTlas[0].aabbMax.x << " " << lightTlas[0].aabbMax.y << " " << lightTlas[0].aabbMax.z << std::endl;
 
+    // Calculate block size
+    int resolution = 1920*1080;
+    int threadCount = 256;
+    int blockSize = ceil((float)resolution / (float)threadCount);
+
     // Create CUDA arrays to store BVH
     LightBVH* dLightTlas;
     cudaMalloc(&dLightTlas, lightTlas.size() * sizeof(LightBVH));
+
+    // Create array to store chosen lights
+    std::vector<int> chosenLights(blockSize * threadCount * MAX_LTC_LIGHTS, -1);
+    int *dChosenLights;
+    cudaMalloc(&dChosenLights, chosenLights.size() * sizeof(int));
 
     // Copy BVH height to constant memory
     cudaMemcpyToSymbol(bvhHeight, &lightTlasHeight, sizeof(int));
@@ -292,39 +331,57 @@ int main() {
 
     cudaMemcpy(dLightTlas, lightTlas.data(), lightTlas.size() * sizeof(LightBVH), cudaMemcpyHostToDevice);
 
-    // Calculate block size
-    int resolution = 1920*1080;
-    int threadCount = 256;
-    int blockSize = ceil((float)resolution / (float)threadCount);
-
     std::cout << "Choosing " << MAX_LTC_LIGHTS << " lights" << std::endl;
     std::cout << "Launching with " << blockSize << " blocks with " << threadCount << " threads per block" << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
-
     // Launch kernel
-    test_bvh_no_dup<<<blockSize,threadCount>>>(dLightTlas);
-    
-    // Wait for it to complete
+    test_bvh_no_dup<<<blockSize,threadCount>>>(dLightTlas, dChosenLights);
+    // Wait for kernel to finish executing
     cudaDeviceSynchronize();
-
-
     auto finish = std::chrono::high_resolution_clock::now();
     auto milliseconds_taken = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() / 1e6;
-
     std::cout << "Time taken for no duplicates: " << milliseconds_taken << "ms" << std::endl;
+    // Copy back the chosen lights
+    cudaMemcpy(chosenLights.data(), dChosenLights, chosenLights.size() * sizeof(int), cudaMemcpyDeviceToHost);
+    std::cout << "Lights chosen: ";
+    for (int i = 0; i < MAX_LTC_LIGHTS; i++) {
+        std::cout << chosenLights[i] << ", ";
+    }
+    std::cout << std::endl;
 
     start = std::chrono::high_resolution_clock::now();
-
     // Launch kernel
-    test_bvh_dup<<<blockSize,threadCount>>>(dLightTlas);
-    
-    // Wait for it to complete
+    test_bvh_no_dup_rejection<<<blockSize,threadCount>>>(dLightTlas, dChosenLights);
+    // Wait for kernel to finish executing
     cudaDeviceSynchronize();
-
     finish = std::chrono::high_resolution_clock::now();
-
     milliseconds_taken = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() / 1e6;
+    std::cout << "Time taken for no duplicates (rejection sampling): " << milliseconds_taken << "ms" << std::endl;
+    // Copy back the chosen lights
+    cudaMemcpy(chosenLights.data(), dChosenLights, chosenLights.size() * sizeof(int), cudaMemcpyDeviceToHost);
+    std::cout << "Lights chosen: ";
+    for (int i = 0; i < MAX_LTC_LIGHTS; i++) {
+        std::cout << chosenLights[i] << ", ";
+    }
+    std::cout << std::endl;
 
+    start = std::chrono::high_resolution_clock::now();
+    // Launch kernel
+    test_bvh_dup<<<blockSize,threadCount>>>(dLightTlas, dChosenLights);
+    // Wait for kernel to finish executing
+    cudaDeviceSynchronize();
+    finish = std::chrono::high_resolution_clock::now();
+    milliseconds_taken = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() / 1e6;
     std::cout << "Time taken for duplicates: " << milliseconds_taken << "ms" << std::endl;
+    // Copy back the chosen lights
+    cudaMemcpy(chosenLights.data(), dChosenLights, chosenLights.size() * sizeof(int), cudaMemcpyDeviceToHost);
+    std::cout << "Lights chosen: ";
+    for (int i = 0; i < MAX_LTC_LIGHTS; i++) {
+        std::cout << chosenLights[i] << ", ";
+    }
+    std::cout << std::endl;
+
+    cudaFree(dLightTlas);
+    cudaFree(dChosenLights);
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.hpp"
+#include <queue>
 
 float evaluateSAHForLightBVH(LightBVH& node, std::vector<TriLight>& primitives, int axis, float pos);
 
@@ -98,3 +99,5 @@ void subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector
 
     bvh[nodeIdx].flux = (bvh[bvh[nodeIdx].left].flux + bvh[bvh[nodeIdx].right].flux) / 2.0f;
 }
+
+void reorderLightBVH(std::vector<LightBVH> &input, std::vector<LightBVH> &output);

@@ -38,3 +38,35 @@ int getLightBVHHeight(uint32_t nodeIdx, std::vector<LightBVH>& bvh)
 
     return max(leftHeight, rightHeight) + 1;
 }
+
+void reorderLightBVH(std::vector<LightBVH> &input, std::vector<LightBVH> &output) {
+    std::queue<LightBVH> q;
+    std::queue<std::pair<int, int>> parent;
+    q.push(input[0]);
+
+    while (!q.empty()) {
+        LightBVH curNode = q.front();
+        q.pop();
+
+        int parentIdx = output.size();
+        output.push_back(curNode);
+        if (!parent.empty()) {
+            std::pair<int, int> par = parent.front();
+            if (par.first == 0) {
+                output[par.second].left = parentIdx;
+            } else {
+                output[par.second].right = parentIdx;
+            }
+            parent.pop();
+        }
+        if (curNode.left > 0) {
+            q.push(input[curNode.left]);
+            parent.push(std::make_pair(0, parentIdx));
+        }
+
+        if (curNode.right > 0) {
+            q.push(input[curNode.right]);
+            parent.push(std::make_pair(1, parentIdx));
+        }
+    }
+}
