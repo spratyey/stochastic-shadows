@@ -18,7 +18,7 @@ int main(int argc, char** argv)
     std::string currentScene;
     std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/bistro.json";
 
-    if (argc == 2)
+    if (argc >= 2)
         currentScene = std::string(argv[1]);
     else
         currentScene = defaultScene;

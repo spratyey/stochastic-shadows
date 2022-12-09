@@ -97,17 +97,17 @@ vec3f ltcDirectLightingLBVHPoly(SurfaceInteraction& si, LCGRand& rng)
     print_pixel("%d %d\n", selectedEnd, elemsChosen);
     for (int i = 0; i < selectedEnd; i++) {
         print_pixel("%d ", selectedIdx[i]);
-// #ifdef SIL
-//         color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, sils[i], selectedIdx[i]);
-// #else
-//         MeshLight light = optixLaunchParams.meshLights[selectedIdx[i]];
-//         for (int j = light.triIdx; j < light.triIdx + light.triCount; j += 1) {
-//             color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
-//                 optixLaunchParams.triLights[j]);
-//         }
-// #endif
-        // Use this for profiling
-        color += optixLaunchParams.meshLights[selectedIdx[i]].avgEmit;
+#ifdef SIL
+        color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, sils[i], selectedIdx[i]);
+#else
+        MeshLight light = optixLaunchParams.meshLights[selectedIdx[i]];
+        for (int j = light.triIdx; j < light.triIdx + light.triCount; j += 1) {
+            color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
+                optixLaunchParams.triLights[j]);
+        }
+#endif
+        // // Use this for profiling
+        // color += optixLaunchParams.meshLights[selectedIdx[i]].avgEmit;
     }
     print_pixel("\n");
 

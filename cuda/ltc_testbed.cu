@@ -8,6 +8,9 @@
 #include "renderers/ltc_lbvh_poly.cuh"
 #include "renderers/ltc_lbvh_tri.cuh"
 #include "renderers/direct_lighting.cuh"
+#include "renderers/direct_lighting.cuh"
+
+#include "renderers/direct_noshadows.cuh"
 
 #include "lcg_random.cuh"
 #include "constants.cuh"
@@ -67,7 +70,10 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         if (si.isLight) {
             color = si.emit;
         } else {
-            color = ltcDirectLightingLBVHPoly(si, rng);
+           // color = ltcDirectLightingLBVHPoly(si, rng);
+            //color = color * estimateDirectLighting(si,rng,2);
+            color = estimateDirectLighting(si,rng,2)/estimateDirectUnshadowedLighting(si, rng, 2);
+            // color = vec3f(0.5,0.5,1.0); // -> super blue nice
         }
 #elif RENDERER == DIRECT_LIGHTING
         if (si.isLight) {

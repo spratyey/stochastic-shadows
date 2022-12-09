@@ -26,11 +26,11 @@
 // #define RENDERER DEBUG_ALPHA
 // #define RENDERER DEBUG_SIL
 // #define RENDERER LTC_BASE
-// #define RENDERER LTC_SAMPLE_TRI
+//#define RENDERER LTC_SAMPLE_TRI
 #define RENDERER LTC_SAMPLE_POLY
 // #define RENDERER DIRECT_LIGHTING
 
-#define SAMPLES 1
+#define SAMPLES 10
 
 // Features
 // #define SIL                     // Whether to use integrate over silhouette or over all triangles of polygon
