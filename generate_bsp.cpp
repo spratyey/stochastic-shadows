@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
 
     // Build BVH and BSP
     LightInfo lightInfo;
-    lightInfo.initialize(scene);
+    lightInfo.initialize(scene, true);
 
     // Write
     LOG("Writing light info")

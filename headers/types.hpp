@@ -122,3 +122,16 @@ struct AABB {
 		return e.x * e.y + e.y * e.z + e.z * e.x; 
 	}
 };
+
+struct LightEdge {
+	// ids of adjecent faces and vertices are stored
+	// we only support manifold meshes
+	vec2i adjFaces;
+	vec3f n1;
+	vec3f n2;
+	int adjFaceCount;
+	vec3f v1;
+	vec3f v2;
+	vec3f cg1;
+	vec3f cg2;
+};

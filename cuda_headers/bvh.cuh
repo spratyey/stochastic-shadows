@@ -129,6 +129,7 @@ void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, 
                 selectedIdx = node.primIdx;
             }
             // TODO: Figure out how to has primIdx
+            // We should never have to go here
             else {
                 selectedIdx = node.primIdx + round(r1 * (node.primCount-1));
                 lightSelectionPdf *= 1.f / node.primCount;

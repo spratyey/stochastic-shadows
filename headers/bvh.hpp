@@ -40,12 +40,21 @@ void subdivideLightBVH(uint32_t nodeIdx, std::vector<LightBVH>& bvh, std::vector
         return;
     }
     
-    vec3f extent = bvh[nodeIdx].aabbMax - bvh[nodeIdx].aabbMin;
+    // vec3f extent = bvh[nodeIdx].aabbMax - bvh[nodeIdx].aabbMin;
+    vec3f minCg = vec3f(1e30);
+    vec3f maxCg = vec3f(-1e30);
+    for (int i = bvh[nodeIdx].primIdx; i < bvh[nodeIdx].primIdx + bvh[nodeIdx].primCount; i += 1) {
+        T prim = primitives[i];
+        minCg = owl::min(minCg, prim.cg);
+        maxCg = owl::max(maxCg, prim.cg);
+    }
+    vec3f extent = maxCg - minCg;
 
     int axis = 0;
     if (extent.y > extent.x) axis = 1;
     if (extent.z > extent[axis]) axis = 2;
-    float splitPos = bvh[nodeIdx].aabbMin[axis] + extent[axis] * 0.5f;
+    // float splitPos = bvh[nodeIdx].aabbMin[axis] + extent[axis] * 0.5f;
+    float splitPos = minCg[axis] + extent[axis] * 0.5f;
 
     int i = bvh[nodeIdx].primIdx;
     int j = i + bvh[nodeIdx].primCount - 1;

@@ -5,8 +5,8 @@
 #define EPS 1e-6
 
 // LTC parameters
-#define MAX_LTC_LIGHTS 20
-#define MAX_ELEMS 1000
+#define MAX_LTC_LIGHTS 12
+#define MAX_ELEMS 100
 
 // Bloom Filter parameters
 #define NUM_HASH 4   	// Number of Hash functions to use

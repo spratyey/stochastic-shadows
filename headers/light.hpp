@@ -26,7 +26,7 @@ class LightInfo {
         std::vector<int> silhouettes;
         int lightTlasHeight;
 
-        void initialize(Scene &scene);
+        void initialize(Scene &scene, bool calcSilhouette);
         void write(std::ofstream &stream);
         void read(std::ifstream &stream);
 };

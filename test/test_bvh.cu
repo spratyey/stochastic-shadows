@@ -340,7 +340,7 @@ int main() {
     // Wait for kernel to finish executing
     cudaDeviceSynchronize();
     auto finish = std::chrono::high_resolution_clock::now();
-    auto milliseconds_taken = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() / 1e6;
+    auto milliseconds_taken = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();
     std::cout << "Time taken for no duplicates: " << milliseconds_taken << "ms" << std::endl;
     // Copy back the chosen lights
     cudaMemcpy(chosenLights.data(), dChosenLights, chosenLights.size() * sizeof(int), cudaMemcpyDeviceToHost);
@@ -356,7 +356,7 @@ int main() {
     // Wait for kernel to finish executing
     cudaDeviceSynchronize();
     finish = std::chrono::high_resolution_clock::now();
-    milliseconds_taken = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() / 1e6;
+    milliseconds_taken = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();
     std::cout << "Time taken for no duplicates (rejection sampling): " << milliseconds_taken << "ms" << std::endl;
     // Copy back the chosen lights
     cudaMemcpy(chosenLights.data(), dChosenLights, chosenLights.size() * sizeof(int), cudaMemcpyDeviceToHost);
@@ -372,7 +372,7 @@ int main() {
     // Wait for kernel to finish executing
     cudaDeviceSynchronize();
     finish = std::chrono::high_resolution_clock::now();
-    milliseconds_taken = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() / 1e6;
+    milliseconds_taken = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();
     std::cout << "Time taken for duplicates: " << milliseconds_taken << "ms" << std::endl;
     // Copy back the chosen lights
     cudaMemcpy(chosenLights.data(), dChosenLights, chosenLights.size() * sizeof(int), cudaMemcpyDeviceToHost);

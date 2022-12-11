@@ -1,12 +1,16 @@
 #pragma once
 
-#include "common.cuh"
+#ifndef DISABLE_OPTIX
+#include "optix.h"
+#endif
 #include "owl/common/math/vec.h"
 #include "owl/common/owl-common.h"
+#include "types.hpp"
 
 using namespace owl;
 
 #ifdef __CUDA_ARCH__
+#ifndef DISABLE_OPTIX
 __device__
 vec3f barycentricInterpolate(vec3f* tex, vec3i index)
 {
@@ -28,6 +32,7 @@ vec2f barycentricInterpolate(vec2f* tex, vec3i index)
         + u * tex[index.y]
         + v * tex[index.z];
 }
+#endif  // !DISABLE_OPTIX
 
 __device__
 vec3f uniformSampleHemisphere(vec2f rand)
@@ -68,8 +73,7 @@ vec3f CosineSampleHemisphere(vec2f rand) {
 }
 
 __device__
-vec3f apply_mat(vec3f mat[3], vec3f v)
-{
+vec3f apply_mat(vec3f mat[3], vec3f v) {
     vec3f result(dot(mat[0], v), dot(mat[1], v), dot(mat[2], v));
     return result;
 }
@@ -155,8 +159,7 @@ void matrixTranspose(vec3f m[3], vec3f mTrans[3]) {
 }
 
 __device__
-void orthonormalBasis(vec3f n, vec3f mat[3], vec3f invmat[3])
-{
+void orthonormalBasis(vec3f n, vec3f mat[3], vec3f invmat[3]) {
     vec3f c1, c2, c3;
     if (n.z < -0.999999f)
     {

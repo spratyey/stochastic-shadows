@@ -30,10 +30,16 @@ void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
     owlContextSetRayTypeCount(context, 2);
 
     // Load light information
+    // TODO: Make this a proper parameter
     LightInfo lightInfo;
-    auto lightInformationPath = scene.json["light_information"];
-    std::ifstream in_file(lightInformationPath, std::ios::binary);
-    lightInfo.read(in_file);
+    if (false) {
+        auto lightInformationPath = scene.json["light_information"];
+        std::ifstream in_file(lightInformationPath, std::ios::binary);
+        lightInfo.read(in_file);
+    } else {
+        lightInfo.initialize(scene, false);
+    }
+
     this->triLightList = lightInfo.triLightList;
     this->meshLightList = lightInfo.meshLightList;
     this->lightTlas = lightInfo.lightTlas;

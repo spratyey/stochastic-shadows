@@ -1,6 +1,6 @@
 #include "light.hpp"
 
-void LightInfo::initialize(Scene &scene) {
+void LightInfo::initialize(Scene &scene, bool calcSilhouette) {
     // ====================================================
     // Area lights setup (Assume triangular area lights)
     // ====================================================
@@ -18,13 +18,15 @@ void LightInfo::initialize(Scene &scene) {
         meshLight.spans.edgeSpan = vec3i(this->lightEdgeList.size());
 
         // Calculate silhouette BSP 
-        ConvexSilhouette silhouette(*light);
-        meshLight.spans.silSpan = vec3i(this->silhouettes.size());
-        meshLight.spans.bspNodeSpan = vec3i(this->bspNodes.size());
-        meshLight.bspRoot = silhouette.root;
-        meshLight.avgEmit = vec3f(0);
-        this->silhouettes.insert(this->silhouettes.end(), silhouette.silhouettes.begin(), silhouette.silhouettes.end());
-        this->bspNodes.insert(this->bspNodes.end(), silhouette.nodes.begin(), silhouette.nodes.end());
+        if (calcSilhouette) {
+            ConvexSilhouette silhouette(*light);
+            meshLight.spans.silSpan = vec3i(this->silhouettes.size());
+            meshLight.spans.bspNodeSpan = vec3i(this->bspNodes.size());
+            meshLight.bspRoot = silhouette.root;
+            meshLight.avgEmit = vec3f(0);
+            this->silhouettes.insert(this->silhouettes.end(), silhouette.silhouettes.begin(), silhouette.silhouettes.end());
+            this->bspNodes.insert(this->bspNodes.end(), silhouette.nodes.begin(), silhouette.nodes.end());
+        }
 
         int numTri = 0;
         float totalArea = 0;
@@ -97,11 +99,13 @@ void LightInfo::initialize(Scene &scene) {
         meshLight.triCount = numTri;
         meshLight.spans.edgeSpan.y = this->lightEdgeList.size();
 
-        meshLight.spans.silSpan.y = this->silhouettes.size();
-        meshLight.spans.bspNodeSpan.y = this->bspNodes.size();
+        if (calcSilhouette) {
+            meshLight.spans.silSpan.y = this->silhouettes.size();
+            meshLight.spans.bspNodeSpan.y = this->bspNodes.size();
+            meshLight.spans.silSpan.z = meshLight.spans.silSpan.y - meshLight.spans.silSpan.x;
+            meshLight.spans.bspNodeSpan.z = meshLight.spans.bspNodeSpan.y - meshLight.spans.bspNodeSpan.x;
+        }
         meshLight.spans.edgeSpan.z = meshLight.spans.edgeSpan.y - meshLight.spans.edgeSpan.x;
-        meshLight.spans.silSpan.z = meshLight.spans.silSpan.y - meshLight.spans.silSpan.x;
-        meshLight.spans.bspNodeSpan.z = meshLight.spans.bspNodeSpan.y - meshLight.spans.bspNodeSpan.x;
 
         meshLight.cg = (meshLight.aabbMin + meshLight.aabbMax) / 2.f;
 
@@ -136,8 +140,7 @@ void LightInfo::initialize(Scene &scene) {
     updateLightBVHNodeBounds<MeshLight>(0, this->lightTlas, this->meshLightList);
     subdivideLightBVH<MeshLight>(0, this->lightTlas, this->meshLightList);
     this->lightTlasHeight = getLightBVHHeight(0, this->lightTlas);
-    std::cout << this->lightTlasHeight << std::endl;
-
+    std::cout << "BVH Height: " << this->lightTlasHeight << std::endl;
     LOG("All light BVH built");
 }
 
