@@ -13,15 +13,14 @@ void LightInfo::initialize(Scene &scene, bool calcSilhouette) {
     for (auto light : triLights->meshes) {
         MeshLight meshLight;
         meshLight.flux = 0.f;
-        meshLight.triIdx = this->triLightList.size();
-        meshLight.triStartIdx = totalTri;
-        meshLight.spans.edgeSpan = vec3i(this->lightEdgeList.size());
+        meshLight.spans.triSpan = this->triLightList.size();
+        meshLight.spans.edgeSpan = vec2i(this->lightEdgeList.size());
 
         // Calculate silhouette BSP 
         if (calcSilhouette) {
             ConvexSilhouette silhouette(*light);
-            meshLight.spans.silSpan = vec3i(this->silhouettes.size());
-            meshLight.spans.bspNodeSpan = vec3i(this->bspNodes.size());
+            meshLight.spans.silSpan = vec2i(this->silhouettes.size());
+            meshLight.spans.bspNodeSpan = vec2i(this->bspNodes.size());
             meshLight.bspRoot = silhouette.root;
             meshLight.avgEmit = vec3f(0);
             this->silhouettes.insert(this->silhouettes.end(), silhouette.silhouettes.begin(), silhouette.silhouettes.end());
@@ -30,6 +29,8 @@ void LightInfo::initialize(Scene &scene, bool calcSilhouette) {
 
         int numTri = 0;
         float totalArea = 0;
+
+        std::vector<TriLight> lightOctants[8];
         for (auto index : light->index) {
             // First, setup data foran individual triangle light source
             TriLight triLight;
@@ -53,6 +54,9 @@ void LightInfo::initialize(Scene &scene, bool calcSilhouette) {
             triLight.aabbMax = owl::max(triLight.aabbMax, triLight.v2);
             triLight.aabbMax = owl::max(triLight.aabbMax, triLight.v3);
 
+            // Calculate in which octant does the normal lie
+            int octantIdx = getOctant(triLight.normal);
+            // lightOctants[octantIdx].push_back(triLight);
             this->triLightList.push_back(triLight); // append to a global list of all triangle light sources
             
             // Next, update the AABB and flux of current light mesh
@@ -69,6 +73,12 @@ void LightInfo::initialize(Scene &scene, bool calcSilhouette) {
             // Keep track of total triangle area
             totalArea += triLight.area;
         }
+
+        // for (int i = 0; i < 8; i += 1) {
+        //     meshLight.spans.octSpan[i].x = this->triLightList.size();
+        //     this->triLightList.insert(this->triLightList.end(), lightOctants[i].begin(), lightOctants[i].end());
+        //     meshLight.spans.octSpan[i].y = this->triLightList.size();
+        // }
 
         meshLight.avgEmit /= totalArea;
 
@@ -96,16 +106,13 @@ void LightInfo::initialize(Scene &scene, bool calcSilhouette) {
         totalTri += numTri;
 
         // Insert spans 
-        meshLight.triCount = numTri;
+        meshLight.spans.triSpan.y = this->triLightList.size();
         meshLight.spans.edgeSpan.y = this->lightEdgeList.size();
 
         if (calcSilhouette) {
             meshLight.spans.silSpan.y = this->silhouettes.size();
             meshLight.spans.bspNodeSpan.y = this->bspNodes.size();
-            meshLight.spans.silSpan.z = meshLight.spans.silSpan.y - meshLight.spans.silSpan.x;
-            meshLight.spans.bspNodeSpan.z = meshLight.spans.bspNodeSpan.y - meshLight.spans.bspNodeSpan.x;
         }
-        meshLight.spans.edgeSpan.z = meshLight.spans.edgeSpan.y - meshLight.spans.edgeSpan.x;
 
         meshLight.cg = (meshLight.aabbMin + meshLight.aabbMax) / 2.f;
 
@@ -113,8 +120,8 @@ void LightInfo::initialize(Scene &scene, bool calcSilhouette) {
         int rootNodeIdx = this->lightBlas.size(); // Root node index (BLAS since it consists of actual triangles)
         LightBVH root;
         root.left = root.right = 0;
-        root.primIdx = meshLight.triIdx;
-        root.primCount = meshLight.triCount;
+        root.primIdx = meshLight.spans.triSpan.x;
+        root.primCount = meshLight.spans.triSpan.y - meshLight.spans.triSpan.x;
         this->lightBlas.push_back(root);
 
         updateLightBVHNodeBounds<TriLight>(rootNodeIdx, this->lightBlas, this->triLightList);

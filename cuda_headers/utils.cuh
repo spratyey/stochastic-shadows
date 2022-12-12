@@ -228,3 +228,12 @@ inline double divideSafe(double a, double b) {
 
 	return a / b;
 }
+
+__both__
+inline int getOctant(vec3f vec) {
+    int octantIdx = vec.x > 0;
+    octantIdx += 2*(vec.y > 0);
+    octantIdx += 4*(vec.z > 0);
+
+    return octantIdx;
+}

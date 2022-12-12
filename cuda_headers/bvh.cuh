@@ -110,9 +110,8 @@ void stochasticTraverseLBVH(LightBVH* bvh, int bvhHeight, int rootNodeIdx, Surfa
 /* Sample light from BVH making sure that no light is sampled twice */
 /* Use only in silhoutte case */
 __device__
-void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, Set *set, int& selectedIdx, float& lightSelectionPdf, vec2f randVec) {
+void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, SurfaceInteraction& si, Set *set, int& selectedIdx, vec2f randVec) {
     selectedIdx = -1;
-    lightSelectionPdf = 1.f;
 
     float r1 = randVec.x;
     float r2 = randVec.y;
@@ -132,7 +131,6 @@ void stochasticTraverseLBVHNoDup(LightBVH* bvh, int bvhHeight, int rootNodeIdx, 
             // We should never have to go here
             else {
                 selectedIdx = node.primIdx + round(r1 * (node.primCount-1));
-                lightSelectionPdf *= 1.f / node.primCount;
             }
             
             if (!prevNodeStatus) {

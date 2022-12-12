@@ -68,7 +68,6 @@ vec3f ltcDirectLightingLBVHPoly(SurfaceInteraction& si, LCGRand& rng)
     }
 #else
     // Use better BVH sampling
-    float unused;
     int elemsChosen = 0;
     for (int i = 0; i < MAX_LTC_LIGHTS; i++) {
         if (selectedEnd == optixLaunchParams.numMeshLights || elemsChosen > MAX_ELEMS) {
@@ -78,17 +77,18 @@ vec3f ltcDirectLightingLBVHPoly(SurfaceInteraction& si, LCGRand& rng)
         rand0 = vec2f(lcg_randomf(rng), lcg_randomf(rng));
 
         ridx = 0;
-        stochasticTraverseLBVHNoDup(optixLaunchParams.lightTlas, optixLaunchParams.lightTlasHeight, 0, si, &selectedSet, ridx, unused, rand0);
+        stochasticTraverseLBVHNoDup(optixLaunchParams.lightTlas, optixLaunchParams.lightTlasHeight, 0, si, &selectedSet, ridx, rand0);
         // Use below for profiling
         // stochasticTraverseLBVH(optixLaunchParams.lightTlas, optixLaunchParams.lightTlasHeight, 0, si, ridx, unused, rand0);
         selectedIdx[selectedEnd] = ridx;
+
 #ifdef SIL
         BSPNode node = getSilEdges(ridx, si.p);
         elemsChosen += node.silSpan.y - node.silSpan.x;
         sils[selectedEnd] = node;
 #else
         MeshLight light = optixLaunchParams.meshLights[selectedIdx[i]];
-        elemsChosen += light.triCount;
+        elemsChosen += light.spans.triSpan.y - light.spans.triSpan.x;
 #endif
         selectedEnd += 1;
     }
@@ -101,10 +101,21 @@ vec3f ltcDirectLightingLBVHPoly(SurfaceInteraction& si, LCGRand& rng)
         color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, sils[i], selectedIdx[i]);
 #else
         MeshLight light = optixLaunchParams.meshLights[selectedIdx[i]];
-        for (int j = light.triIdx; j < light.triIdx + light.triCount; j += 1) {
+        int octant = getOctant(si.p - light.cg);
+        for (int j = light.spans.triSpan.x; j < light.spans.triSpan.y; j += 1) {
+        // for (int j = light.spans.octSpan[octant].x; j < light.spans.octSpan[octant].y; j += 1) {
             color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
                 optixLaunchParams.triLights[j]);
         }
+        // #pragma unroll
+        // for (int k = 1; k < 7; k++) {
+        //     // int octantk = octant ^ (1 << k);
+        //     int octantk = octant ^ k;
+        //     for (int j = light.spans.octSpan[octantk].x; j < light.spans.octSpan[octantk].y; j += 1) {
+        //         color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
+        //             optixLaunchParams.triLights[j]);
+        //     }
+        // }
 #endif
         // // Use this for profiling
         // color += optixLaunchParams.meshLights[selectedIdx[i]].avgEmit;

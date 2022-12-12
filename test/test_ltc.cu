@@ -301,8 +301,7 @@ int main() {
     for (auto light : scene.triLights->meshes) {
         MeshLight meshLight;
         meshLight.flux = 0.f;
-        meshLight.triIdx = triLightList.size();
-        meshLight.triStartIdx = triLightList.size();
+        meshLight.spans.triSpan.x = triLightList.size();
 
         int numTri = 0;
         float totalArea = 0;
@@ -348,7 +347,7 @@ int main() {
         meshLight.avgEmit /= totalArea;
 
         // Insert spans 
-        meshLight.triCount = numTri;
+        meshLight.spans.triSpan.y = meshLight.spans.triSpan.x + numTri;
 
         meshLight.cg = (meshLight.aabbMin + meshLight.aabbMax) / 2.f;
 

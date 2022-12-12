@@ -4,6 +4,10 @@
 #define PI 3.14159265359f
 #define EPS 1e-6
 
+// Spatial reuse parameters
+#define NUM_BINS 10     // Number of bins in which the polygons of each light should be divided
+#define KERNEL_SIZE 3   // NxN sized kernel
+
 // LTC parameters
 #define MAX_LTC_LIGHTS 12
 #define MAX_ELEMS 100

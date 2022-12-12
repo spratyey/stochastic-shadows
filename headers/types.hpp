@@ -21,10 +21,6 @@ struct MeshLight {
 
 	float flux;
 
-	int triIdx;
-  int triStartIdx;
-	int triCount;
-
 	int bvhIdx;
 	int bvhHeight;
 
@@ -32,11 +28,12 @@ struct MeshLight {
 
   struct Span{
     // Spans of different compacted buffers
-    // span.x -> start, span.y -> end; span.z -> size
-    // TODO: Remove the Z component
-    vec3i silSpan;
-    vec3i edgeSpan;
-    vec3i bspNodeSpan;
+    // span.x -> start, span.y -> end;
+    vec2i silSpan;
+    vec2i edgeSpan;
+    vec2i bspNodeSpan;
+    vec2i triSpan;
+    // vec2i octSpan[8]; // Spans for triangles lying different octants
   } spans;
 };
 
@@ -88,7 +85,7 @@ struct LightBVH {
 	vec3f aabbMin = vec3f(1e30f);
 	vec3f aabbMax = vec3f(-1e30f);
 	vec3f aabbMid = vec3f(0.f);
-	vec3f aabbMidEmit = vec3f(0.0f);
+	// vec3f aabbMidEmit = vec3f(0.0f);
 	float flux = 0.f;
 
 	uint32_t left = 0, right = 0;

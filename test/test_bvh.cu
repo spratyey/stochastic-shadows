@@ -275,9 +275,6 @@ int main() {
 
         meshLight.avgEmit /= totalArea;
 
-        // Insert spans 
-        meshLight.triCount = numTri;
-
         meshLight.cg = (meshLight.aabbMin + meshLight.aabbMax) / 2.f;
 
         meshLightList.push_back(meshLight);

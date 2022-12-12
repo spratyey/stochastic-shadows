@@ -11,6 +11,7 @@
 #include "model.h"
 #include "bvh.hpp"
 #include "silhouetteConvex.hpp"
+#include "utils.cuh"
 
 using namespace owl;
 
