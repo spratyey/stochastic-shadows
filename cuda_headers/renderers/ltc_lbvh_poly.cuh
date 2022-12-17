@@ -9,7 +9,7 @@
 #include "constants.cuh"
 
 __device__
-vec3f ltcDirectLightingLBVHPoly(SurfaceInteraction& si, LCGRand& rng)
+vec3f ltcDirectLightingLBVHPoly(SurfaceInteraction& si, LCGRand& rng, int binIdx)
 {
     vec3f normal_local(0.f, 0.f, 1.f);
 
@@ -88,7 +88,7 @@ vec3f ltcDirectLightingLBVHPoly(SurfaceInteraction& si, LCGRand& rng)
         sils[selectedEnd] = node;
 #else
         MeshLight light = optixLaunchParams.meshLights[selectedIdx[i]];
-        elemsChosen += light.spans.triSpan.y - light.spans.triSpan.x;
+        elemsChosen += light.spans.binSpan[binIdx].y - light.spans.binSpan[binIdx].x;
 #endif
         selectedEnd += 1;
     }
@@ -101,21 +101,10 @@ vec3f ltcDirectLightingLBVHPoly(SurfaceInteraction& si, LCGRand& rng)
         color += integrateOverPolyhedron(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame, sils[i], selectedIdx[i]);
 #else
         MeshLight light = optixLaunchParams.meshLights[selectedIdx[i]];
-        int octant = getOctant(si.p - light.cg);
-        for (int j = light.spans.triSpan.x; j < light.spans.triSpan.y; j += 1) {
-        // for (int j = light.spans.octSpan[octant].x; j < light.spans.octSpan[octant].y; j += 1) {
+        for (int j = light.spans.binSpan[binIdx].x; j < light.spans.binSpan[binIdx].y; j += 1) {
             color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
                 optixLaunchParams.triLights[j]);
         }
-        // #pragma unroll
-        // for (int k = 1; k < 7; k++) {
-        //     // int octantk = octant ^ (1 << k);
-        //     int octantk = octant ^ k;
-        //     for (int j = light.spans.octSpan[octantk].x; j < light.spans.octSpan[octantk].y; j += 1) {
-        //         color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
-        //             optixLaunchParams.triLights[j]);
-        //     }
-        // }
 #endif
         // // Use this for profiling
         // color += optixLaunchParams.meshLights[selectedIdx[i]].avgEmit;

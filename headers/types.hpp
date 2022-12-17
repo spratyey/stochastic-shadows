@@ -2,6 +2,7 @@
 
 #include "owl/common/math/vec.h"
 #include "owl/common/owl-common.h"
+#include "constants.cuh"
 #include <vector>
 
 using namespace owl;
@@ -33,7 +34,7 @@ struct MeshLight {
     vec2i edgeSpan;
     vec2i bspNodeSpan;
     vec2i triSpan;
-    // vec2i octSpan[8]; // Spans for triangles lying different octants
+    vec2i binSpan[NUM_BINS];
   } spans;
 };
 

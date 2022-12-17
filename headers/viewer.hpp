@@ -11,14 +11,15 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl2.h"
 
+#include <random>
 #include "scene.h"
 #include "ltc_isotropic.h"
 #include "silhouetteConvex.hpp"
+#include "light.hpp"
+#include "types.hpp"
 
 #include "common.cuh"
 #include "constants.cuh"
-#include "light.hpp"
-#include "types.hpp"
 
 using namespace owl;
 
@@ -55,6 +56,7 @@ struct RenderWindow : public owl::viewer::OWLViewer {
     bool sbtDirty = true;
 
     OWLRayGen rayGen{ 0 };
+    OWLRayGen spatialReuse{ 0 };
     OWLMissProg missProg{ 0 };
     
     OWLGroup world; // TLAS
@@ -65,6 +67,9 @@ struct RenderWindow : public owl::viewer::OWLViewer {
     OWLParams launchParams;
 
     OWLBuffer accumBuffer{ 0 };
+    OWLBuffer normalBuffer{ 0 };
+    OWLBuffer albedoBuffer{ 0 };
+    OWLBuffer binIdxBuffer { 0 };
     int accumId = 0;
 
     Scene currentScene;

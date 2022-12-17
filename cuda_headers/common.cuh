@@ -46,7 +46,12 @@ struct LaunchParams {
 	vec2i bufferSize;
 
 	float4* accumBuffer;
+	float3* normalBuffer;
+	float3* albedoBuffer;
 	int accumId;
+
+	// Buffer for storing bufferId
+	int *binIdxBuffer;
 
 	int rendererType;
 	OptixTraversableHandle world;

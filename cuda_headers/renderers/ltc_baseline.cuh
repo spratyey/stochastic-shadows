@@ -9,7 +9,7 @@
 using namespace owl;
 
 __device__
-vec3f ltcDirectLightingBaseline(SurfaceInteraction& si, LCGRand& rng)
+vec3f ltcDirectLightingBaseline(SurfaceInteraction& si, LCGRand& rng, int binIdx)
 {
     vec3f wo_local = normalize(apply_mat(si.to_local, si.wo));
     if (wo_local.z < 0.f)
@@ -35,9 +35,12 @@ vec3f ltcDirectLightingBaseline(SurfaceInteraction& si, LCGRand& rng)
     iso_frame[2] = normal_local;
     iso_frame[1] = normalize(cross(iso_frame[2], iso_frame[0]));
 
-    for (int lidx = 0; lidx < optixLaunchParams.numTriLights; lidx++) {
-        color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
-            optixLaunchParams.triLights[lidx]);
+    for (int i = 0; i < optixLaunchParams.numMeshLights; i++) {
+        MeshLight light = optixLaunchParams.meshLights[i];
+        for (int lidx = light.spans.binSpan[binIdx].x; lidx < light.spans.binSpan[binIdx].y; lidx++) {
+            color += integrateOverPolygon(si, ltc_mat, ltc_mat_inv, amplitude, iso_frame,
+                optixLaunchParams.triLights[lidx]);
+        }
     }
 
     return color;

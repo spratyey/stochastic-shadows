@@ -5,12 +5,12 @@
 #define EPS 1e-6
 
 // Spatial reuse parameters
-#define NUM_BINS 10     // Number of bins in which the polygons of each light should be divided
+#define NUM_BINS 9     // Number of bins in which the polygons of each light should be divided
 #define KERNEL_SIZE 3   // NxN sized kernel
 
 // LTC parameters
-#define MAX_LTC_LIGHTS 12
-#define MAX_ELEMS 100
+#define MAX_LTC_LIGHTS 25
+#define MAX_ELEMS 400
 
 // Bloom Filter parameters
 #define NUM_HASH 4   	// Number of Hash functions to use
@@ -24,19 +24,26 @@
 #define LTC_BASE 3
 #define LTC_SAMPLE_TRI 4
 #define LTC_SAMPLE_POLY 5
-#define DIRECT_LIGHTING 6
+#define LTC_MONTE_CARLO 6
+#define DIRECT_LIGHTING 7
 
 // #define RENDERER DEBUG_DIFFUSE
 // #define RENDERER DEBUG_ALPHA
 // #define RENDERER DEBUG_SIL
 // #define RENDERER LTC_BASE
 // #define RENDERER LTC_SAMPLE_TRI
-#define RENDERER LTC_SAMPLE_POLY
-// #define RENDERER DIRECT_LIGHTING
+// #define RENDERER LTC_SAMPLE_POLY
+// #define RENDERER LTC_MONTE_CARLO
+#define RENDERER DIRECT_LIGHTING
 
-#define SAMPLES 1
+#define SAMPLES 100
 
 // Features
+
+#if RENDERER == LTC_SAMPLE_POLY || RENDERER == LTC_BASE
+#define SPATIAL_REUSE
+#endif
+
 // #define SIL                     // Whether to use integrate over silhouette or over all triangles of polygon
 #define BSP_SIL                 // Whether to use BSP to calculate silhouette
 // #define USE_BLOOM            // Whether to use bloom filters for set

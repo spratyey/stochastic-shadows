@@ -7,6 +7,7 @@
 #include "renderers/ltc_baseline.cuh"
 #include "renderers/ltc_lbvh_poly.cuh"
 #include "renderers/ltc_lbvh_tri.cuh"
+#include "renderers/ltc_monte_carlo.cuh"
 #include "renderers/direct_lighting.cuh"
 
 #include "lcg_random.cuh"
@@ -37,6 +38,7 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
 
     vec3f color(0.f);
 
+    int binIdx = lcg_randomf(rng)*NUM_BINS;
     if (si.hit == false) {
         color = si.diffuse;
     } else {
@@ -55,7 +57,7 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         if (si.isLight) {
             color = si.emit;
         } else {
-            color = ltcDirectLightingBaseline(si, rng);
+            color = ltcDirectLightingBaseline(si, rng, binIdx);
         }
 #elif RENDERER == LTC_SAMPLE_TRI
         if (si.isLight) {
@@ -67,8 +69,17 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         if (si.isLight) {
             color = si.emit;
         } else {
-            color = ltcDirectLightingLBVHPoly(si, rng);
+            color = ltcDirectLightingLBVHPoly(si, rng, binIdx);
         }
+#elif RENDERER == LTC_MONTE_CARLO
+        if (si.isLight) {
+            color = si.emit;
+        } else {
+            color = ltcMonteCarlo(si, rng);
+        }
+
+        if (optixLaunchParams.accumId > 0)
+            color = color + vec3f(optixLaunchParams.accumBuffer[fbOfs]);
 #elif RENDERER == DIRECT_LIGHTING
         if (si.isLight) {
             color = si.emit;
@@ -78,11 +89,64 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
 
         if (optixLaunchParams.accumId > 0)
             color = color + vec3f(optixLaunchParams.accumBuffer[fbOfs]);
-
-        optixLaunchParams.accumBuffer[fbOfs] = vec4f(color, 1.f);
-        color = (1.f / (optixLaunchParams.accumId + 1)) * color;
 #endif
     }
 
-    self.frameBuffer[fbOfs] = owl::make_rgba(vec3f(linear_to_srgb(color.x), linear_to_srgb(color.y), linear_to_srgb(color.z)));
+    optixLaunchParams.binIdxBuffer[fbOfs] = binIdx;
+    optixLaunchParams.accumBuffer[fbOfs] = vec4f(color, 1.f);
+    color = (1.f / (optixLaunchParams.accumId + 1)) * color;
+
+#ifdef SPATIAL_REUSE
+    optixLaunchParams.normalBuffer[fbOfs] = si.n_geom;
+    optixLaunchParams.albedoBuffer[fbOfs] = si.diffuse;
+    self.frameBuffer[fbOfs] = owl::make_rgba(color);
+#else
+    self.frameBuffer[fbOfs] = owl::make_rgba(vec3f(
+        linear_to_srgb(color.x),
+        linear_to_srgb(color.y),
+        linear_to_srgb(color.z)
+    ));
+#endif
+}
+
+OPTIX_RAYGEN_PROGRAM(spatialReuse)() {
+    const RayGenData& self = owl::getProgramData<RayGenData>();
+    const vec2i pixelId = owl::getLaunchIndex();
+    const int fbOfs = pixelId.x + self.frameBufferSize.x * pixelId.y;
+
+    vec4f color = vec4f(0);
+    bool used[NUM_BINS] = { false };
+    for (int i = -KERNEL_SIZE / 2; i < (KERNEL_SIZE / 2) + 1; i += 1) {
+        for (int j = -KERNEL_SIZE / 2; j < (KERNEL_SIZE / 2) + 1; j += 1) {
+            if (i == 0 && j == 0) {
+                continue;
+            }
+            vec2i newPixel = pixelId + vec2i(i, j);
+            if ((newPixel.x < 0 || newPixel.x == self.frameBufferSize.x) ||
+                (newPixel.y < 0 || newPixel.y == self.frameBufferSize.y)) {
+                    continue;
+                }
+
+            int newFbOfs = newPixel.x + self.frameBufferSize.x * newPixel.y;
+            if (used[optixLaunchParams.binIdxBuffer[newFbOfs]]) {
+                continue;
+            }
+
+            // Don't do spatial reuse if normals differ by more than 20 degrees
+            if (dot((vec3f)optixLaunchParams.normalBuffer[fbOfs], (vec3f)optixLaunchParams.normalBuffer[newFbOfs]) < cos(0.34)) {
+                continue;
+            }
+
+            used[optixLaunchParams.binIdxBuffer[newFbOfs]] = true;
+            color = color + (vec4f)optixLaunchParams.accumBuffer[newFbOfs];
+        }
+    }
+
+    self.frameBuffer[fbOfs] = owl::make_rgba(vec3f(
+        linear_to_srgb(color.x),
+        linear_to_srgb(color.y),
+        linear_to_srgb(color.z)
+    ));
+    // self.frameBuffer[fbOfs] = make_rgba(((vec3f)optixLaunchParams.normalBuffer[fbOfs] + 1) / 2);
+    // optixLaunchParams.accumBuffer[fbOfs] = color;
 }

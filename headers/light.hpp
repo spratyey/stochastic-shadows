@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <vector>
+#include <random>
 #include "serialize.hpp"
 #include "common.cuh"
 #include "bsp.hpp"

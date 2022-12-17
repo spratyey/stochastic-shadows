@@ -30,7 +30,7 @@ void LightInfo::initialize(Scene &scene, bool calcSilhouette) {
         int numTri = 0;
         float totalArea = 0;
 
-        std::vector<TriLight> lightOctants[8];
+        std::vector<TriLight> lightBins[NUM_BINS];
         for (auto index : light->index) {
             // First, setup data foran individual triangle light source
             TriLight triLight;
@@ -55,9 +55,8 @@ void LightInfo::initialize(Scene &scene, bool calcSilhouette) {
             triLight.aabbMax = owl::max(triLight.aabbMax, triLight.v3);
 
             // Calculate in which octant does the normal lie
-            int octantIdx = getOctant(triLight.normal);
-            // lightOctants[octantIdx].push_back(triLight);
-            this->triLightList.push_back(triLight); // append to a global list of all triangle light sources
+            int binIdx = rand() % NUM_BINS;
+            lightBins[binIdx].push_back(triLight);
             
             // Next, update the AABB and flux of current light mesh
             meshLight.aabbMin = owl::min(meshLight.aabbMin, triLight.aabbMin);
@@ -74,11 +73,11 @@ void LightInfo::initialize(Scene &scene, bool calcSilhouette) {
             totalArea += triLight.area;
         }
 
-        // for (int i = 0; i < 8; i += 1) {
-        //     meshLight.spans.octSpan[i].x = this->triLightList.size();
-        //     this->triLightList.insert(this->triLightList.end(), lightOctants[i].begin(), lightOctants[i].end());
-        //     meshLight.spans.octSpan[i].y = this->triLightList.size();
-        // }
+        for (int i = 0; i < NUM_BINS; i += 1) {
+            meshLight.spans.binSpan[i].x = this->triLightList.size();
+            this->triLightList.insert(this->triLightList.end(), lightBins[i].begin(), lightBins[i].end());
+            meshLight.spans.binSpan[i].y = this->triLightList.size();
+        }
 
         meshLight.avgEmit /= totalArea;
 
