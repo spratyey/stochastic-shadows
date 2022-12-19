@@ -9,6 +9,7 @@
 #include "renderers/ltc_lbvh_tri.cuh"
 #include "renderers/ltc_monte_carlo.cuh"
 #include "renderers/direct_lighting.cuh"
+#include "renderers/restir.cuh"
 
 #include "lcg_random.cuh"
 #include "constants.cuh"
@@ -84,7 +85,16 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         if (si.isLight) {
             color = si.emit;
         } else {
-            color = estimateDirectLighting(si, rng, 2);
+            color = estimateDirectLighting(si, rng, 0);
+        }
+
+        if (optixLaunchParams.accumId > 0)
+            color = color + vec3f(optixLaunchParams.accumBuffer[fbOfs]);
+#elif RENDERER == DIRECT_LIGHTING_RESTIR
+        if (si.isLight) {
+            color = si.emit;
+        } else {
+            color = estimateDirectLightingReSTIR(si, rng);
         }
 
         if (optixLaunchParams.accumId > 0)

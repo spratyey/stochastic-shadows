@@ -33,6 +33,8 @@ file(GLOB SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 set(test_dir ${PROJECT_SOURCE_DIR}/test/)
 add_subdirectory(${test_dir})
 
+find_package(gflags REQUIRED)
+
 embed_ptx(
   OUTPUT_TARGET
     ptx_code_ltc_testbed
@@ -58,6 +60,8 @@ target_link_libraries(ltc_testbed
     ptx_code_ltc_testbed
     # OWL libs
     owl::owl owl_viewer
+    # GFlags
+    gflags
 )
 
 target_link_libraries(generate_bsp

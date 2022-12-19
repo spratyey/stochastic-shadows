@@ -39,18 +39,18 @@ float GGX(float alpha, vec3f V, vec3f L) {
     Fresnel is not used (commented).
     Evaluates only f (i.e. BRDF without cosine foreshortening) */
 __device__
-vec3f evaluate_brdf(vec3f wo, vec3f wi, vec3f diffuse_color, float alpha) {
+vec3f evaluateBrdf(vec3f wo, vec3f wi, vec3f diffuse_color, float alpha) {
     vec3f brdf = vec3f(0.0f);
 
     // Diffuse + specular
     brdf += 0.5f*diffuse_color / PI;
     brdf += 0.5*GGX(alpha, wo, wi);
 
-    return brdf;
+    return max(brdf, vec3f(0));
 }
 
 __device__
-float get_brdf_pdf(float alpha, vec3f V, vec3f Ne) {
+float getBrdfPdf(float alpha, vec3f V, vec3f Ne) {
     float cosT = Ne.z;
     float alphasq = alpha * alpha;
 
@@ -75,7 +75,7 @@ vec3f sample_GGX(vec2f rand, float alpha, vec3f V) {
 }
 
 // __device__
-// float get_brdf_pdf(float alpha, vec3f V, vec3f Ne) {
+// float getBrdfPdf(float alpha, vec3f V, vec3f Ne) {
 //     vec3f L = -V + 2.0f * Ne * dot(V, Ne);
 //     L = normalize(L);
 // 

@@ -12,6 +12,10 @@
 #define MAX_LTC_LIGHTS 25
 #define MAX_ELEMS 400
 
+// RIS parameters
+// #define USE_RESERVOIRS      // Whether to use reserveroirs for sampling
+#define NUM_PROPOSALS 32    // Number of proposals (M) to use for RIS 
+
 // Bloom Filter parameters
 #define NUM_HASH 4   	// Number of Hash functions to use
 #define NUM_LSB  8   	// Number of bits to consider from hash
@@ -26,6 +30,7 @@
 #define LTC_SAMPLE_POLY 5
 #define LTC_MONTE_CARLO 6
 #define DIRECT_LIGHTING 7
+#define DIRECT_LIGHTING_RESTIR 8
 
 // #define RENDERER DEBUG_DIFFUSE
 // #define RENDERER DEBUG_ALPHA
@@ -34,12 +39,17 @@
 // #define RENDERER LTC_SAMPLE_TRI
 // #define RENDERER LTC_SAMPLE_POLY
 // #define RENDERER LTC_MONTE_CARLO
-#define RENDERER DIRECT_LIGHTING
+// #define RENDERER DIRECT_LIGHTING
+#define RENDERER DIRECT_LIGHTING_RESTIR
 
-#define SAMPLES 100
+#define SAMPLES 1
+
+// Whether to enable accumulation buffer
+#if RENDERER == DIRECT_LIGHTING || RENDERER == DIRECT_LIGHTING_RESTIR || RENDERER == LTC_MONTE_CARLO
+#define ACCUM
+#endif
 
 // Features
-
 #if RENDERER == LTC_SAMPLE_POLY || RENDERER == LTC_BASE
 #define SPATIAL_REUSE
 #endif

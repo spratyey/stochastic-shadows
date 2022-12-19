@@ -1,36 +1,30 @@
 #include "viewer.hpp"
 #include "scene.h"
 #include "common.h"
+#include "flags.hpp"
 
 #include <chrono>
 #include <fstream>
+#include <filesystem>
+#include <gflags/gflags.h>
 
+namespace fs = std::filesystem;
 using namespace owl;
 
 // Compiled PTX code
 extern "C" char ltc_testbed_ptx[];
 
-int main(int argc, char** argv)
-{
-    std::string savePath;
-    bool isInteractive = false;
+int main(int argc, char** argv) {
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-    std::string currentScene;
-    std::string defaultScene = "/home/aakashkt/ishaan/OptixRenderer/scenes/scene_configs/bistro.json";
+    bool isInteractive = FLAGS_isInteractive;
 
-    if (argc == 2)
-        currentScene = std::string(argv[1]);
-    else
-        currentScene = defaultScene;
+    std::string scenePath = FLAGS_scenePath;
 
-    if (argc >= 3) {
-        isInteractive = atoi(argv[2]);
-    }
-    
-    LOG("Loading scene " + currentScene);
+    LOG("Loading scene " + scenePath);
 
     Scene scene;
-    bool success = parseScene(currentScene, scene);
+    bool success = parseScene(scenePath, scene);
     if (!success) {
         LOG("Error loading scene");
         return -1;
@@ -53,10 +47,10 @@ int main(int argc, char** argv)
         // ##################################################################
         win.showAndRun();
     } else {
-        if (argc == 4) {
-            savePath = std::string(argv[3]);
-        } else {
-            savePath = "output";
+        fs::path savePath(FLAGS_outputPath);
+        if (!fs::exists(savePath)) {
+            LOG("Creating " + savePath.string());
+            fs::create_directory(savePath);
         }
 
         nlohmann::json stats;
@@ -69,8 +63,8 @@ int main(int argc, char** argv)
             auto start = std::chrono::high_resolution_clock::now();
 
             win.accumId = 0;
-#if RENDERER == DIRECT_LIGHTING
-            for (int sample = 0; sample < scene.spp; sample++) {
+#ifdef ACCUM
+            for (int sample = 0; sample < FLAGS_samples; sample++) {
                 win.render();
             }
 #else
@@ -81,7 +75,7 @@ int main(int argc, char** argv)
 
             auto milliseconds_taken = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() / 1e6;
 
-            std::string imgFileName = savePath + "/" + "LTC_TestBed" + "_" + std::to_string(imgName) + ".png";
+            std::string imgFileName = savePath.string() / fs::path("LTC_TestBed_" + std::to_string(imgName) + ".png");
             nlohmann::json currentStats = {
                 {"image_name", imgFileName},
                 {"width", scene.imgWidth},
@@ -96,7 +90,7 @@ int main(int argc, char** argv)
             imgName++;
         }
 
-        std::ofstream op(savePath + "/stats.json");
+        std::ofstream op(savePath.string() / fs::path("stats.json"));
         op << std::setw(4) << stats << std::endl;
         for (auto stat : stats) {
           LOG(stat["image_name"]);

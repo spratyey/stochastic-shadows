@@ -27,9 +27,7 @@ int main()
     selectedIdx[selectedEnd++] = ridx;
 
     for (int i = 0; i < 10; i++) {
-        // for (int i = 0; i < 18; i++) {
         ridx = areaLights[i];
-        // ridx = round(rng() * numAreaLights);
 
         int setIdx = 0;
         bool found = false;

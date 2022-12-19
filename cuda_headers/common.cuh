@@ -24,7 +24,6 @@
 	if (pixelX == pixelId.x && pixelY == pixelId.y && 										\
 		(optixLaunchParams.clicked || !optixLaunchParams.interactive))						\
 	{ 																						\
-	 	printf("Pixel ID: %d %d ", pixelX, pixelY);											\
 		printf( __VA_ARGS__ );																\
 	}																						\
 }

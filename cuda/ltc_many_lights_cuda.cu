@@ -207,8 +207,8 @@ vec3f sampleLightSource(SurfaceInteraction si, int lightIdx, float lightSelectio
     owl::traceRay(optixLaunchParams.world, ray, srd);
 
     if (si.wo_local.z > 0.f && wi_local.z > 0.f && srd.visibility != vec3f(0.f) && light_pdf > 0.f && owl::dot(-wi, lnormal) > 0.f) {
-        vec3f brdf = evaluate_brdf(si.wo_local, wi_local, si.diffuse, si.alpha);
-        brdf_pdf = get_brdf_pdf(si.alpha, si.wo_local, normalize(si.wo_local + wi_local));
+        vec3f brdf = evaluateBrdf(si.wo_local, wi_local, si.diffuse, si.alpha);
+        brdf_pdf = getBrdfPdf(si.alpha, si.wo_local, normalize(si.wo_local + wi_local));
 
         if (mis && brdf_pdf > 0.f) {
             float weight = PowerHeuristic(1, light_pdf, 1, brdf_pdf);
@@ -242,8 +242,8 @@ vec3f sampleBRDF(SurfaceInteraction si, float lightSelectionPdf, vec2f rand, boo
         float lDotWi = owl::abs(owl::dot(srd.normal, -wi));
         light_pdf = lightSelectionPdf * (xmy / (srd.area * lDotWi));
 
-        vec3f brdf = evaluate_brdf(si.wo_local, wi_local, si.diffuse, si.alpha);
-        brdf_pdf = get_brdf_pdf(si.alpha, si.wo_local, normalize(si.wo_local + wi_local));
+        vec3f brdf = evaluateBrdf(si.wo_local, wi_local, si.diffuse, si.alpha);
+        brdf_pdf = getBrdfPdf(si.alpha, si.wo_local, normalize(si.wo_local + wi_local));
 
         if (mis && light_pdf > 0.f && brdf_pdf > 0.f) {
             float weight = PowerHeuristic(1, brdf_pdf, 1, light_pdf);

@@ -1,7 +1,7 @@
 #include "viewer.hpp"
 
 RenderWindow::RenderWindow(Scene& scene, vec2i resolution, bool interactive, char *ptx) 
-    : owl::viewer::OWLViewer("LTC Many Lights", resolution, interactive, false)
+    : owl::viewer::OWLViewer("LTC Testbed", resolution, interactive, false)
 {
     this->currentScene = scene;
     this->initialize(scene, ptx, interactive);
@@ -421,7 +421,7 @@ void RenderWindow::render()
     owlLaunch2D(spatialReuse, this->fbSize.x, this->fbSize.y, this->launchParams);
 #endif
 
-#if RENDERER == DIRECT_LIGHTING || RENDERER == LTC_MONTE_CARLO
+#ifdef ACCUM
     owlParamsSet1i(this->launchParams, "accumId", this->accumId);
 
     owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
