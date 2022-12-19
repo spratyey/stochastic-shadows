@@ -1,6 +1,7 @@
 #pragma once
 
 #include "owl/common/math/vec.h"
+#include "reservoir.cuh"
 #include "lcg_random.cuh"
 #include "constants.cuh"
 #include "common.cuh"
@@ -11,11 +12,10 @@ using namespace owl;
 template<typename LightType>
 __device__
 void sampleLightRIS(SurfaceInteraction &si, LightType *lights, int lightCount, int &selIdx, float &selPdf, vec3f &selP, LCGRand &rng) {
-    float wSum = 0;
-
 #ifdef USE_RESERVOIRS
-    // TODO: Implement this
+    Reservoir res(&rng);
 #else
+    float wSum = 0;
     vec3f proposalsP[NUM_PROPOSALS];
     int proposalsIdx[NUM_PROPOSALS];
     float weights[NUM_PROPOSALS];
@@ -35,16 +35,21 @@ void sampleLightRIS(SurfaceInteraction &si, LightType *lights, int lightCount, i
         vec3f brdf = evaluateBrdf(si.wo_local, wiLocal, si.diffuse, si.alpha);
         float pHat = length(brdf*lights[selIdx].emit*max(wiLocal.z, 0.0f));
         float w = pHat / selPdf;
-        wSum += w;
 #ifdef USE_RESERVOIRS
+        res.update(selIdx, selP, w);
 #else
+        wSum += w;
         proposalsP[i] = selP;
         proposalsIdx[i] = selIdx;
         weights[i] = w;
 #endif
     }
 
-#ifndef USE_RESERVOIRS
+#ifdef USE_RESERVOIRS
+   selIdx = res.selIdx; 
+   selPdf = res.wSum;
+   selP = res.selP;
+#else
     // Generate normalized CDF
     for (int i = 0; i < NUM_PROPOSALS; i++) {
         weights[i] /= wSum;
