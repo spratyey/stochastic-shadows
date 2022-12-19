@@ -1,0 +1,3 @@
+[submodule "lib/progressbar"]
+	path = lib/progressbar
+	url = git@github.com:gipert/progressbar.git

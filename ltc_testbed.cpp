@@ -2,6 +2,7 @@
 #include "scene.h"
 #include "common.h"
 #include "flags.hpp"
+#include "progressbar.hpp"
 
 #include <chrono>
 #include <fstream>
@@ -64,9 +65,12 @@ int main(int argc, char** argv) {
 
             win.accumId = 0;
 #ifdef ACCUM
+            progressbar bar(FLAGS_samples);
             for (int sample = 0; sample < FLAGS_samples; sample++) {
+                bar.update();
                 win.render();
             }
+            std::cout << std::endl;
 #else
             win.render();
 #endif

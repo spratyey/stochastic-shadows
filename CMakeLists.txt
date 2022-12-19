@@ -27,6 +27,7 @@ include_directories("headers")
 include_directories("cuda_headers")
 include_directories("precomputation")
 include_directories("owl/3rdParty")
+include_directories("lib/progressbar/include")
 
 file(GLOB SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
