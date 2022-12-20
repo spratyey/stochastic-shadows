@@ -8,8 +8,7 @@
 using namespace owl;
 
 __device__
-vec3f sampleLightSource(SurfaceInteraction si, int lightIdx, float lightSelectionPdf, vec2f rand, bool mis)
-{
+vec3f sampleLightSource(SurfaceInteraction si, int lightIdx, float lightSelectionPdf, vec2f rand, bool mis) {
     vec3f color(0.f, 0.f, 0.f);
     float light_pdf = 0.f, brdf_pdf = 0.f;
     TriLight triLight = optixLaunchParams.triLights[lightIdx];
@@ -47,7 +46,6 @@ vec3f sampleLightSource(SurfaceInteraction si, int lightIdx, float lightSelectio
         }
         else if (!mis) {
             color += brdf * lemit * owl::abs(wi_local.z) / light_pdf;
-            color = normalize(vec3f(brdf * lemit * wi_local.z));
         }
     }
 

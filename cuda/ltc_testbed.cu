@@ -78,18 +78,12 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         } else {
             color = ltcMonteCarlo(si, rng);
         }
-
-        if (optixLaunchParams.accumId > 0)
-            color = color + vec3f(optixLaunchParams.accumBuffer[fbOfs]);
 #elif RENDERER == DIRECT_LIGHTING
         if (si.isLight) {
             color = si.emit;
         } else {
-            color = estimateDirectLighting(si, rng, 0);
+            color = estimateDirectLighting(si, rng, 2);
         }
-
-        if (optixLaunchParams.accumId > 0)
-            color = color + vec3f(optixLaunchParams.accumBuffer[fbOfs]);
 #elif RENDERER == DIRECT_LIGHTING_RESTIR
         if (si.isLight) {
             color = si.emit;
@@ -97,16 +91,18 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
             color = estimateDirectLightingReSTIR(si, rng);
         }
 
-        if (optixLaunchParams.accumId > 0)
-            color = color + vec3f(optixLaunchParams.accumBuffer[fbOfs]);
 #endif
     }
 
-    optixLaunchParams.binIdxBuffer[fbOfs] = binIdx;
-    optixLaunchParams.accumBuffer[fbOfs] = vec4f(color, 1.f);
+    #ifdef ACCUM
+    if (optixLaunchParams.accumId > 0)
+        color = color + vec3f(optixLaunchParams.accumBuffer[fbOfs]);
+        optixLaunchParams.accumBuffer[fbOfs] = vec4f(color, 1.f);
+    #endif
     color = (1.f / (optixLaunchParams.accumId + 1)) * color;
 
 #ifdef SPATIAL_REUSE
+    optixLaunchParams.binIdxBuffer[fbOfs] = binIdx;
     optixLaunchParams.normalBuffer[fbOfs] = si.n_geom;
     optixLaunchParams.albedoBuffer[fbOfs] = si.diffuse;
     self.frameBuffer[fbOfs] = owl::make_rgba(color);
@@ -119,6 +115,7 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
 #endif
 }
 
+#ifdef SPATIAL_REUSE
 OPTIX_RAYGEN_PROGRAM(spatialReuse)() {
     const RayGenData& self = owl::getProgramData<RayGenData>();
     const vec2i pixelId = owl::getLaunchIndex();
@@ -148,7 +145,9 @@ OPTIX_RAYGEN_PROGRAM(spatialReuse)() {
             }
 
             used[optixLaunchParams.binIdxBuffer[newFbOfs]] = true;
+#ifdef ACCUM
             color = color + (vec4f)optixLaunchParams.accumBuffer[newFbOfs];
+#endif
         }
     }
 
@@ -160,3 +159,4 @@ OPTIX_RAYGEN_PROGRAM(spatialReuse)() {
     // self.frameBuffer[fbOfs] = make_rgba(((vec3f)optixLaunchParams.normalBuffer[fbOfs] + 1) / 2);
     // optixLaunchParams.accumBuffer[fbOfs] = color;
 }
+#endif

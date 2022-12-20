@@ -122,7 +122,7 @@ struct AABB {
 };
 
 struct LightEdge {
-	// ids of adjecent faces and vertices are stored
+	// ids of adjacent faces and vertices are stored
 	// we only support manifold meshes
 	vec2i adjFaces;
 	vec3f n1;

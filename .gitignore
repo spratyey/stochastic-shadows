@@ -12,3 +12,7 @@ test_bf
 scenes/
 **/*.png
 **/*.mtl
+*.btc
+launch.json
+settings.json
+stats.json

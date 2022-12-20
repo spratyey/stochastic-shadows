@@ -7,6 +7,7 @@
 
 using namespace owl;
 
+#ifdef BSP_SIL
 __device__
 BSPNode getSilEdges(int lightIdx, vec3f &p) {
     MeshLight light = optixLaunchParams.meshLights[lightIdx];
@@ -22,6 +23,7 @@ BSPNode getSilEdges(int lightIdx, vec3f &p) {
     }
     return node;
 }
+#endif
 
 __device__
 bool shouldFlip(int silIdx, int edgeCount) {

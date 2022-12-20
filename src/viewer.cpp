@@ -24,17 +24,32 @@ void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
     context = owlContextCreate(nullptr, 1);
     module = owlModuleCreate(context, ptx);
 
+#ifdef ACCUM
     accumBuffer = owlDeviceBufferCreate(context, OWL_FLOAT4, 1, nullptr);
     owlBufferResize(accumBuffer, this->getWindowSize().x * this->getWindowSize().y);
+#endif
 
+#ifdef SPATIAL_REUSE
     normalBuffer = owlDeviceBufferCreate(context, OWL_FLOAT3, 1, nullptr);
     owlBufferResize(normalBuffer, this->getWindowSize().x * this->getWindowSize().y);
 
     albedoBuffer = owlDeviceBufferCreate(context, OWL_FLOAT3, 1, nullptr);
     owlBufferResize(albedoBuffer, this->getWindowSize().x * this->getWindowSize().y);
 
+    depthBuffer = owlDeviceBufferCreate(context, OWL_FLOAT, 1, nullptr);
+    owlBufferResize(albedoBuffer, this->getWindowSize().x * this->getWindowSize().y);
+
     binIdxBuffer = owlDeviceBufferCreate(context, OWL_INT, 1, nullptr);
     owlBufferResize(binIdxBuffer, this->getWindowSize().x * this->getWindowSize().y);
+#endif
+
+#ifdef USE_RESERVOIRS
+    resFloatBuffer = owlDeviceBufferCreate(context, OWL_FLOAT4, 1, nullptr);
+    owlBufferResize(resFloatBuffer, this->getWindowSize().x * this->getWindowSize().y);
+
+    resIntBuffer = owlDeviceBufferCreate(context, OWL_INT2, 1, nullptr);
+    owlBufferResize(resIntBuffer, this->getWindowSize().x * this->getWindowSize().y);
+#endif
 
     owlContextSetRayTypeCount(context, 2);
 
@@ -75,9 +90,11 @@ void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
         {"lightBlas", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, lightBlas)},
         {"lightTlas", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, lightTlas)},
         {"lightTlasHeight", OWL_INT, OWL_OFFSETOF(LaunchParams, lightTlasHeight)},
+#ifdef BSP_SIL
         // BSP and silhouette
         {"silhouettes", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, silhouettes)},
         {"bsp", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, bsp)},
+#endif
         {"world", OWL_GROUP, OWL_OFFSETOF(LaunchParams, world)},
         {"ltc_1", OWL_TEXTURE, OWL_OFFSETOF(LaunchParams, ltc_1)},
         {"ltc_2", OWL_TEXTURE, OWL_OFFSETOF(LaunchParams, ltc_2)},
@@ -86,21 +103,29 @@ void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
         {"camera.dir_00", OWL_FLOAT3, OWL_OFFSETOF(LaunchParams, camera.dir_00)},
         {"camera.dir_du", OWL_FLOAT3, OWL_OFFSETOF(LaunchParams, camera.dir_du)},
         {"camera.dir_dv", OWL_FLOAT3, OWL_OFFSETOF(LaunchParams, camera.dir_dv)},
-        {"rendererType", OWL_INT, OWL_OFFSETOF(LaunchParams, rendererType)},
+
+        // Framebuffer
+        {"bufferSize", OWL_INT2, OWL_OFFSETOF(LaunchParams, bufferSize)},
         {"accumId", OWL_INT, OWL_OFFSETOF(LaunchParams, accumId)},
-        // Albedo, normal, color buffers
+#ifdef ACCUM
         {"accumBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, accumBuffer)},
+#endif
+#ifdef SPATIAL_REUSE
         {"normalBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, normalBuffer)},
         {"albedoBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, albedoBuffer)},
-        // Light Bin buffer
+        {"depthBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, depthBuffer)},
         {"binIdxBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, binIdxBuffer)},
+#endif
+#if RENDERER == DIRECT_LIGHTING_RESTIR && defined(USE_RESERVOIRS)
+        {"resFloatBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, resFloatBuffer)},
+        {"resIntBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, resIntBuffer)},
+#endif
+
         // Random controls
         {"lerp", OWL_FLOAT, OWL_OFFSETOF(LaunchParams, lerp)},
         // Mouse variables
         {"clicked", OWL_BOOL, OWL_OFFSETOF(LaunchParams, clicked)},
         {"pixelId", OWL_INT2, OWL_OFFSETOF(LaunchParams, pixelId)},
-        // Screen size
-        {"bufferSize", OWL_INT2, OWL_OFFSETOF(LaunchParams, bufferSize)},
         {"interactive", OWL_BOOL, OWL_OFFSETOF(LaunchParams, interactive)},
         {nullptr}
     };
@@ -152,14 +177,24 @@ void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
 
     // Upload accumulation buffer and ID
     owlParamsSet1i(this->launchParams, "accumId", this->accumId);
+#ifdef ACCUM
     owlParamsSetBuffer(this->launchParams, "accumBuffer", this->accumBuffer);
+#endif
 
+#ifdef SPATIAL_REUSE
     // Upload GBuffers
     owlParamsSetBuffer(this->launchParams, "normalBuffer", this->normalBuffer);
     owlParamsSetBuffer(this->launchParams, "albedoBuffer", this->albedoBuffer);
-
-    // Upload bin ID buffer and ID
+    owlParamsSetBuffer(this->launchParams, "depthBuffer", this->depthBuffer);
     owlParamsSetBuffer(this->launchParams, "binIdxBuffer", this->binIdxBuffer);
+#endif
+
+#ifdef USE_RESERVOIRS
+    // Upload reservoir buffers
+    owlParamsSetBuffer(this->launchParams, "resFloatBuffer", this->resFloatBuffer);
+    owlParamsSetBuffer(this->launchParams, "resIntBuffer", this->resIntBuffer);
+#endif
+
 
 #ifdef BSP_SIL
     // Upload the precomputed silhouettes
@@ -334,7 +369,9 @@ void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
     // Set the TLAS to be used
     owlParamsSetGroup(this->launchParams, "world", world);
 
+#ifdef SPATIAL_REUSE
     spatialReuse = owlRayGenCreate(context, module, "spatialReuse", sizeof(RayGenData), rayGenVars, -1);
+#endif
 
     // ====================================================
     // Finally, build the programs, pipeline and SBT
@@ -514,19 +551,33 @@ void RenderWindow::resize(const vec2i& newSize)
     // Resize framebuffer, and other ops (OWL::Viewer ops)
     OWLViewer::resize(newSize);
 
+#ifdef ACCUM
     // Resize accumulation buffer, and set to launch params
     owlBufferResize(accumBuffer, newSize.x * newSize.y);
     owlParamsSetBuffer(this->launchParams, "accumBuffer", this->accumBuffer);
+#endif
 
+#ifdef SPATIAL_REUSE
     owlBufferResize(normalBuffer, newSize.x * newSize.y);
     owlParamsSetBuffer(this->launchParams, "normalBuffer", this->normalBuffer);
 
     owlBufferResize(albedoBuffer, newSize.x * newSize.y);
     owlParamsSetBuffer(this->launchParams, "albedoBuffer", this->albedoBuffer);
 
-    // Resize accumulation buffer, and set to launch params
+    owlBufferResize(depthBuffer, newSize.x * newSize.y);
+    owlParamsSetBuffer(this->launchParams, "depthBuffer", this->binIdxBuffer);
+
     owlBufferResize(binIdxBuffer, newSize.x * newSize.y);
     owlParamsSetBuffer(this->launchParams, "binIdxBuffer", this->binIdxBuffer);
+#endif
+
+#ifdef USE_RESERVOIRS
+    owlBufferResize(resFloatBuffer, newSize.x * newSize.y);
+    owlParamsSetBuffer(this->launchParams, "resFloatBuffer", this->resFloatBuffer);
+
+    owlBufferResize(resIntBuffer, newSize.x * newSize.y);
+    owlParamsSetBuffer(this->launchParams, "resIntBuffer", this->resIntBuffer);
+#endif
 
     owlParamsSet2i(this->launchParams, "bufferSize", (const owl2i&)newSize);
     LOG("RESIZE!")
@@ -610,8 +661,10 @@ void RenderWindow::cameraChanged()
     owlRayGenSet1ul(rayGen, "frameBuffer", (uint64_t) this->fbPointer);
     owlRayGenSet2i(rayGen, "frameBufferSize", (const owl2i&) this->fbSize);
 
+#ifdef SPATIAL_REUSE
     owlRayGenSet1ul(spatialReuse, "frameBuffer", (uint64_t) this->fbPointer);
     owlRayGenSet2i(spatialReuse, "frameBufferSize", (const owl2i&) this->fbSize);
+#endif
 
     owlParamsSet3f(this->launchParams, "camera.pos", (const owl3f&)camera_pos);
     owlParamsSet3f(this->launchParams, "camera.dir_00", (const owl3f&) camera_d00);

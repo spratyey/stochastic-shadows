@@ -13,7 +13,6 @@
 #define MAX_ELEMS 400
 
 // RIS parameters
-// #define USE_RESERVOIRS      // Whether to use reserveroirs for sampling
 #define NUM_PROPOSALS 32    // Number of proposals (M) to use for RIS 
 
 // Bloom Filter parameters
@@ -44,17 +43,21 @@
 
 #define SAMPLES 1
 
+#if RENDERER == DIRECT_LIGHTING_RESTIR
+#define USE_RESERVOIRS      // Whether to use WRS for sampling
+#endif
+
 // Whether to enable accumulation buffer
 #if RENDERER == DIRECT_LIGHTING || RENDERER == DIRECT_LIGHTING_RESTIR || RENDERER == LTC_MONTE_CARLO
-#define ACCUM
+// #define ACCUM
 #endif
 
 // Features
-#if RENDERER == LTC_SAMPLE_POLY || RENDERER == LTC_BASE
-#define SPATIAL_REUSE
+#if RENDERER == LTC_SAMPLE_POLY || RENDERER == LTC_BASE || (RENDERER == DIRECT_LIGHTING_RESTIR && defined(USE_RESERVOIRS))
+// #define SPATIAL_REUSE
 #endif
 
 // #define SIL                     // Whether to use integrate over silhouette or over all triangles of polygon
-#define BSP_SIL                 // Whether to use BSP to calculate silhouette
+// #define BSP_SIL                 // Whether to use BSP to calculate silhouette
 // #define USE_BLOOM            // Whether to use bloom filters for set
 // #define REJECTION_SAMPLING   // Whether to use rejection sampling or unique sampling

@@ -97,8 +97,8 @@ int main(int argc, char** argv) {
         std::ofstream op(savePath.string() / fs::path("stats.json"));
         op << std::setw(4) << stats << std::endl;
         for (auto stat : stats) {
-          LOG(stat["image_name"]);
-          LOG(stat["frametime_milliseconds"]);
+            LOG(stat["image_name"]);
+            LOG(stat["frametime_milliseconds"]);
         }
     }
 

@@ -140,6 +140,7 @@ vec3f integrateOverPolygon(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_m
 }
 
 
+#ifdef BSP_SIL
 __device__
 vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], vec3f mat2[3], BSPNode node, int selectedLightIdx) {
     MeshLight meshLight = optixLaunchParams.meshLights[selectedLightIdx];
@@ -215,6 +216,7 @@ vec3f integrateOverSil(SurfaceInteraction& si, vec3f mat[3], vec3f mat2[3], BSPN
 
     return color;
 }
+#endif // BSP_SIL
 
 __device__
 vec3f integrateOverPolyhedron(SurfaceInteraction& si, vec3f ltc_mat[3], vec3f ltc_mat_inv[3], float amplitude, vec3f iso_frame[3], BSPNode node, int selectedLightIdx)

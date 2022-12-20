@@ -56,7 +56,9 @@ struct RenderWindow : public owl::viewer::OWLViewer {
     bool sbtDirty = true;
 
     OWLRayGen rayGen{ 0 };
+#ifdef SPATIAL_REUSE
     OWLRayGen spatialReuse{ 0 };
+#endif
     OWLMissProg missProg{ 0 };
     
     OWLGroup world; // TLAS
@@ -66,11 +68,20 @@ struct RenderWindow : public owl::viewer::OWLViewer {
 
     OWLParams launchParams;
 
-    OWLBuffer accumBuffer{ 0 };
-    OWLBuffer normalBuffer{ 0 };
-    OWLBuffer albedoBuffer{ 0 };
-    OWLBuffer binIdxBuffer { 0 };
     int accumId = 0;
+#ifdef ACCUM
+    OWLBuffer accumBuffer { 0 };
+#endif
+#ifdef SPATIAL_REUSE
+    OWLBuffer normalBuffer { 0 };
+    OWLBuffer albedoBuffer { 0 };
+    OWLBuffer depthBuffer { 0 };
+    OWLBuffer binIdxBuffer { 0 };
+#endif
+#ifdef USE_RESERVOIRS
+    OWLBuffer resFloatBuffer { 0 };
+    OWLBuffer resIntBuffer { 0 };
+#endif
 
     Scene currentScene;
     std::vector<SceneCamera> recordedCameras;

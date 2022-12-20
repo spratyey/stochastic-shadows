@@ -42,17 +42,24 @@ struct LaunchParams {
 	bool clicked;
 	bool interactive;
 	vec2i pixelId;
-	vec2i bufferSize;
 
+ 	// Framebuffer
+	int accumId;
+	vec2i bufferSize;
+#ifdef ACCUM
 	float4* accumBuffer;
+#endif
+#ifdef SPATIAL_REUSE
 	float3* normalBuffer;
 	float3* albedoBuffer;
-	int accumId;
-
-	// Buffer for storing bufferId
+	float* depthBuffer;
 	int *binIdxBuffer;
+#endif
+#ifdef USE_RESERVOIRS
+	float4 *resFloatBuffer;
+	int2 *resIntBuffer;
+#endif
 
-	int rendererType;
 	OptixTraversableHandle world;
 	cudaTextureObject_t ltc_1, ltc_2, ltc_3;
 
@@ -69,8 +76,10 @@ struct LaunchParams {
 	LightBVH* lightTlas;
 	int lightTlasHeight;
 
+#ifdef BSP_SIL
 	int *silhouettes;
 	BSPNode *bsp;
+#endif
 
 	struct {
 		vec3f pos;

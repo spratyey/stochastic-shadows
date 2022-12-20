@@ -32,4 +32,24 @@ class Reservoir {
         void merge (Reservoir toMerge) {
 
         }
+
+        __device__
+        void pack(vec4f &floatBuffer, vec2i &intBuffer) {
+            floatBuffer.x = selP.x;
+            floatBuffer.y = selP.y;
+            floatBuffer.z = selP.z;
+            floatBuffer.w = wSum;
+            intBuffer.x = selIdx;
+            intBuffer.y = samples;
+        }
+
+        __device__
+        void unpack(vec4f &floatBuffer, vec2i &intBuffer) {
+            selP.x = floatBuffer.x;
+            selP.y = floatBuffer.y;
+            selP.z = floatBuffer.z;
+            wSum = floatBuffer.w;
+            selIdx = intBuffer.x;
+            samples = intBuffer.y;
+        }
 };
