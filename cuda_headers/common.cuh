@@ -55,9 +55,10 @@ struct LaunchParams {
 	float* depthBuffer;
 	int *binIdxBuffer;
 #endif
-#ifdef USE_RESERVOIRS
+#if defined(USE_RESERVOIRS) && defined(SPATIAL_REUSE)
 	float4 *resFloatBuffer;
 	int2 *resIntBuffer;
+	uint passId;
 #endif
 
 	OptixTraversableHandle world;

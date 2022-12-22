@@ -40,6 +40,11 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
     vec3f color(0.f);
 
     int binIdx = lcg_randomf(rng)*NUM_BINS;
+    
+#ifdef USE_RESERVOIRS
+    Reservoir res(&rng);
+#endif
+
     if (si.hit == false) {
         color = si.diffuse;
     } else {
@@ -88,31 +93,33 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         if (si.isLight) {
             color = si.emit;
         } else {
-            color = estimateDirectLightingReSTIR(si, rng);
+            color = estimateDirectLightingReSTIR(si, rng, res);
+#if defined(USE_RESERVOIRS) && defined(SPATIAL_REUSE)
+            res.pack(optixLaunchParams.resFloatBuffer[fbOfs], optixLaunchParams.resIntBuffer[fbOfs]);
+#endif
         }
-
 #endif
     }
 
-    #ifdef ACCUM
-    if (optixLaunchParams.accumId > 0)
+#ifdef ACCUM
+    if (optixLaunchParams.accumId > 0) {
         color = color + vec3f(optixLaunchParams.accumBuffer[fbOfs]);
-        optixLaunchParams.accumBuffer[fbOfs] = vec4f(color, 1.f);
-    #endif
+    } 
+    optixLaunchParams.accumBuffer[fbOfs] = vec4f(color, 1.f);
     color = (1.f / (optixLaunchParams.accumId + 1)) * color;
+#endif
 
 #ifdef SPATIAL_REUSE
     optixLaunchParams.binIdxBuffer[fbOfs] = binIdx;
     optixLaunchParams.normalBuffer[fbOfs] = si.n_geom;
     optixLaunchParams.albedoBuffer[fbOfs] = si.diffuse;
-    self.frameBuffer[fbOfs] = owl::make_rgba(color);
-#else
+    optixLaunchParams.depthBuffer[fbOfs] = length(si.p - ray.origin);
+#endif
     self.frameBuffer[fbOfs] = owl::make_rgba(vec3f(
         linear_to_srgb(color.x),
         linear_to_srgb(color.y),
         linear_to_srgb(color.z)
     ));
-#endif
 }
 
 #ifdef SPATIAL_REUSE
@@ -121,42 +128,42 @@ OPTIX_RAYGEN_PROGRAM(spatialReuse)() {
     const vec2i pixelId = owl::getLaunchIndex();
     const int fbOfs = pixelId.x + self.frameBufferSize.x * pixelId.y;
 
-    vec4f color = vec4f(0);
-    bool used[NUM_BINS] = { false };
-    for (int i = -KERNEL_SIZE / 2; i < (KERNEL_SIZE / 2) + 1; i += 1) {
-        for (int j = -KERNEL_SIZE / 2; j < (KERNEL_SIZE / 2) + 1; j += 1) {
-            if (i == 0 && j == 0) {
-                continue;
-            }
-            vec2i newPixel = pixelId + vec2i(i, j);
-            if ((newPixel.x < 0 || newPixel.x == self.frameBufferSize.x) ||
-                (newPixel.y < 0 || newPixel.y == self.frameBufferSize.y)) {
-                    continue;
-                }
+    vec4f color = vec4f(optixLaunchParams.depthBuffer[fbOfs], 1);
+//     bool used[NUM_BINS] = { false };
+//     for (int i = -KERNEL_SIZE / 2; i < (KERNEL_SIZE / 2) + 1; i += 1) {
+//         for (int j = -KERNEL_SIZE / 2; j < (KERNEL_SIZE / 2) + 1; j += 1) {
+//             if (i == 0 && j == 0) {
+//                 continue;
+//             }
+//             vec2i newPixel = pixelId + vec2i(i, j);
+//             if ((newPixel.x < 0 || newPixel.x == self.frameBufferSize.x) ||
+//                 (newPixel.y < 0 || newPixel.y == self.frameBufferSize.y)) {
+//                     continue;
+//                 }
 
-            int newFbOfs = newPixel.x + self.frameBufferSize.x * newPixel.y;
-            if (used[optixLaunchParams.binIdxBuffer[newFbOfs]]) {
-                continue;
-            }
+//             int newFbOfs = newPixel.x + self.frameBufferSize.x * newPixel.y;
+//             if (used[optixLaunchParams.binIdxBuffer[newFbOfs]]) {
+//                 continue;
+//             }
 
-            // Don't do spatial reuse if normals differ by more than 20 degrees
-            if (dot((vec3f)optixLaunchParams.normalBuffer[fbOfs], (vec3f)optixLaunchParams.normalBuffer[newFbOfs]) < cos(0.34)) {
-                continue;
-            }
+//             // Don't do spatial reuse if normals differ by more than 20 degrees
+//             if (dot((vec3f)optixLaunchParams.normalBuffer[fbOfs], (vec3f)optixLaunchParams.normalBuffer[newFbOfs]) < cos(0.34)) {
+//                 continue;
+//             }
 
-            used[optixLaunchParams.binIdxBuffer[newFbOfs]] = true;
-#ifdef ACCUM
-            color = color + (vec4f)optixLaunchParams.accumBuffer[newFbOfs];
-#endif
-        }
-    }
+//             used[optixLaunchParams.binIdxBuffer[newFbOfs]] = true;
+// #ifdef ACCUM
+//             color = color + (vec4f)optixLaunchParams.accumBuffer[newFbOfs];
+// #endif
+//         }
+//     }
 
-    self.frameBuffer[fbOfs] = owl::make_rgba(vec3f(
-        linear_to_srgb(color.x),
-        linear_to_srgb(color.y),
-        linear_to_srgb(color.z)
-    ));
-    // self.frameBuffer[fbOfs] = make_rgba(((vec3f)optixLaunchParams.normalBuffer[fbOfs] + 1) / 2);
+    // self.frameBuffer[fbOfs] = owl::make_rgba(vec3f(
+    //     linear_to_srgb(color.x),
+    //     linear_to_srgb(color.y),
+    //     linear_to_srgb(color.z)
+    // ));
+    self.frameBuffer[fbOfs] = make_rgba(color);
     // optixLaunchParams.accumBuffer[fbOfs] = color;
 }
 #endif

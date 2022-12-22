@@ -13,6 +13,7 @@ class Reservoir {
         int selIdx;
         vec3f selP;
         float wSum;
+        float W;
         int samples;
 
         __device__
@@ -29,26 +30,21 @@ class Reservoir {
         }
 
         __device__
-        void merge (Reservoir toMerge) {
-
-        }
-
-        __device__
-        void pack(vec4f &floatBuffer, vec2i &intBuffer) {
+        void pack(float4 &floatBuffer, int2 &intBuffer) {
             floatBuffer.x = selP.x;
             floatBuffer.y = selP.y;
             floatBuffer.z = selP.z;
-            floatBuffer.w = wSum;
+            floatBuffer.w = W;
             intBuffer.x = selIdx;
             intBuffer.y = samples;
         }
 
         __device__
-        void unpack(vec4f &floatBuffer, vec2i &intBuffer) {
+        void unpack(float4 &floatBuffer, int2 &intBuffer) {
             selP.x = floatBuffer.x;
             selP.y = floatBuffer.y;
             selP.z = floatBuffer.z;
-            wSum = floatBuffer.w;
+            W = floatBuffer.w;
             selIdx = intBuffer.x;
             samples = intBuffer.y;
         }

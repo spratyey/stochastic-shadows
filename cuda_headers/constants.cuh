@@ -5,8 +5,10 @@
 #define EPS 1e-6
 
 // Spatial reuse parameters
-#define NUM_BINS 9     // Number of bins in which the polygons of each light should be divided
-#define KERNEL_SIZE 3   // NxN sized kernel
+#define NUM_BINS 9          // Number of bins in which the polygons of each light should be divided
+#define NUM_PASSES 2        // Number of spatial reuse passes
+#define SPATIAL_SAMPLES 5   // Number of spatial neighbours to sample
+#define KERNEL_SIZE 30      // NxN sized kernel
 
 // LTC parameters
 #define MAX_LTC_LIGHTS 25
@@ -41,7 +43,7 @@
 // #define RENDERER DIRECT_LIGHTING
 #define RENDERER DIRECT_LIGHTING_RESTIR
 
-#define SAMPLES 1
+#define SAMPLES 1   // Number of samples per frame
 
 #if RENDERER == DIRECT_LIGHTING_RESTIR
 #define USE_RESERVOIRS      // Whether to use WRS for sampling
@@ -49,12 +51,12 @@
 
 // Whether to enable accumulation buffer
 #if RENDERER == DIRECT_LIGHTING || RENDERER == DIRECT_LIGHTING_RESTIR || RENDERER == LTC_MONTE_CARLO
-// #define ACCUM
+#define ACCUM
 #endif
 
 // Features
 #if RENDERER == LTC_SAMPLE_POLY || RENDERER == LTC_BASE || (RENDERER == DIRECT_LIGHTING_RESTIR && defined(USE_RESERVOIRS))
-// #define SPATIAL_REUSE
+#define SPATIAL_REUSE
 #endif
 
 // #define SIL                     // Whether to use integrate over silhouette or over all triangles of polygon

@@ -43,7 +43,7 @@ void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
     owlBufferResize(binIdxBuffer, this->getWindowSize().x * this->getWindowSize().y);
 #endif
 
-#ifdef USE_RESERVOIRS
+#if defined(USE_RESERVOIRS) && defined(SPATIAL_REUSE)
     resFloatBuffer = owlDeviceBufferCreate(context, OWL_FLOAT4, 1, nullptr);
     owlBufferResize(resFloatBuffer, this->getWindowSize().x * this->getWindowSize().y);
 
@@ -116,9 +116,10 @@ void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
         {"depthBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, depthBuffer)},
         {"binIdxBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, binIdxBuffer)},
 #endif
-#if RENDERER == DIRECT_LIGHTING_RESTIR && defined(USE_RESERVOIRS)
+#if defined(USE_RESERVOIRS) && defined(SPATIAL_REUSE)
         {"resFloatBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, resFloatBuffer)},
         {"resIntBuffer", OWL_BUFPTR, OWL_OFFSETOF(LaunchParams, resIntBuffer)},
+        {"passId", OWL_UINT, OWL_OFFSETOF(LaunchParams, passId)},
 #endif
 
         // Random controls
@@ -189,10 +190,11 @@ void RenderWindow::initialize(Scene& scene, char *ptx, bool interactive)
     owlParamsSetBuffer(this->launchParams, "binIdxBuffer", this->binIdxBuffer);
 #endif
 
-#ifdef USE_RESERVOIRS
+#if defined(USE_RESERVOIRS) && defined(SPATIAL_REUSE)
     // Upload reservoir buffers
     owlParamsSetBuffer(this->launchParams, "resFloatBuffer", this->resFloatBuffer);
     owlParamsSetBuffer(this->launchParams, "resIntBuffer", this->resIntBuffer);
+    owlParamsSet1ui(this->launchParams, "passId", 0);
 #endif
 
 
@@ -451,18 +453,27 @@ void RenderWindow::render()
         sbtDirty = false;
     }
 
+#if defined(USE_RESERVOIRS) && defined(SPATIAL_REUSE)
+    owlParamsSet1ui(this->launchParams, "passId", 0);
+#endif
     owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
-    owlParamsSet1b(this->launchParams, "clicked", false);
 
-#ifdef SPATIAL_REUSE
+#if defined(USE_RESERVOIRS) && defined(SPATIAL_REUSE)
+    for (int i = 1; i < NUM_PASSES + 1; i++) {
+        owlParamsSet1ui(this->launchParams, "passId", i);
+        owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
+    }
+#elif defined(SPATIAL_REUSE)
     owlLaunch2D(spatialReuse, this->fbSize.x, this->fbSize.y, this->launchParams);
 #endif
+
+    owlParamsSet1b(this->launchParams, "clicked", false);
 
 #ifdef ACCUM
     owlParamsSet1i(this->launchParams, "accumId", this->accumId);
 
     owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
-    accumId++;
+    this->accumId++;
 #endif
 
     OptixDenoiserParams denoiserParams;
@@ -571,7 +582,7 @@ void RenderWindow::resize(const vec2i& newSize)
     owlParamsSetBuffer(this->launchParams, "binIdxBuffer", this->binIdxBuffer);
 #endif
 
-#ifdef USE_RESERVOIRS
+#if defined(USE_RESERVOIRS) && defined(SPATIAL_REUSE)
     owlBufferResize(resFloatBuffer, newSize.x * newSize.y);
     owlParamsSetBuffer(this->launchParams, "resFloatBuffer", this->resFloatBuffer);
 
