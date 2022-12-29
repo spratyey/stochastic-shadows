@@ -56,6 +56,7 @@ struct LaunchParams {
 	int *binIdxBuffer;
 #endif
 #if defined(USE_RESERVOIRS) && defined(SPATIAL_REUSE)
+ // TODO: Implement sample count
 	float4 *resFloatBuffer;
 	int2 *resIntBuffer;
 	uint passId;

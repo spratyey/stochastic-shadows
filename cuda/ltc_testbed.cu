@@ -94,7 +94,7 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
             color = si.emit;
         } else {
             color = estimateDirectLightingReSTIR(si, rng, res);
-#if defined(USE_RESERVOIRS) && defined(SPATIAL_REUSE)
+#if defined(USE_RESERVOIRS) && (defined(SPATIAL_REUSE) || defined(TEMPORAL_REUSE))
             res.pack(optixLaunchParams.resFloatBuffer[fbOfs], optixLaunchParams.resIntBuffer[fbOfs]);
 #endif
         }

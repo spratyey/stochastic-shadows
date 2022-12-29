@@ -51,12 +51,16 @@
 
 // Whether to enable accumulation buffer
 #if RENDERER == DIRECT_LIGHTING || RENDERER == DIRECT_LIGHTING_RESTIR || RENDERER == LTC_MONTE_CARLO
-#define ACCUM
+// #define ACCUM
 #endif
 
 // Features
 #if RENDERER == LTC_SAMPLE_POLY || RENDERER == LTC_BASE || (RENDERER == DIRECT_LIGHTING_RESTIR && defined(USE_RESERVOIRS))
 #define SPATIAL_REUSE
+#endif
+
+#if RENDERER == DIRECT_LIGHTING_RESTIR && !defined(ACCUM)
+#define TEMPORAL_REUSE
 #endif
 
 // #define SIL                     // Whether to use integrate over silhouette or over all triangles of polygon

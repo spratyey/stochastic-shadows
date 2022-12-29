@@ -64,10 +64,10 @@ int main(int argc, char** argv) {
             auto start = std::chrono::high_resolution_clock::now();
 
             win.accumId = 0;
-#ifdef ACCUM
-            progressbar bar(FLAGS_samples);
+#if defined(ACCUM) || defined(TEMPORAL_REUSE)
+            // progressbar bar(FLAGS_samples);
             for (int sample = 0; sample < FLAGS_samples; sample++) {
-                bar.update();
+                // bar.update();
                 win.render();
             }
             std::cout << std::endl;

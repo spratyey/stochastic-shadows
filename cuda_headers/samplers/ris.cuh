@@ -28,7 +28,7 @@ void sampleLightRIS(SurfaceInteraction &si, LightType *lights, int lightCount, R
 
         vec3f brdf = evaluateBrdf(si.wo_local, wiLocal, si.diffuse, si.alpha);
         float pHat = length(brdf*lights[selIdx].emit*max(wiLocal.z, 0.0f));
-        float w = pHat / selPdf;
-        res.update(selIdx, selP, w);
+        float w = pHat / max(selPdf, EPS);
+        res.update(selIdx, selP, w, 1);
     }
 }

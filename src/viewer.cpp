@@ -469,11 +469,10 @@ void RenderWindow::render()
 
     owlParamsSet1b(this->launchParams, "clicked", false);
 
-#ifdef ACCUM
     owlParamsSet1i(this->launchParams, "accumId", this->accumId);
-
-    owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
     this->accumId++;
+#ifdef ACCUM
+    owlLaunch2D(rayGen, this->fbSize.x, this->fbSize.y, this->launchParams);
 #endif
 
     OptixDenoiserParams denoiserParams;

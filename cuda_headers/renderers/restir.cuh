@@ -11,7 +11,7 @@ using namespace owl;
 __device__
 vec3f estimateDirectLightingReSTIR(SurfaceInteraction& si, LCGRand& rng, Reservoir &res) {
     vec3f color = vec3f(0.f);
-#if defined(USE_RESERVOIRS) && defined(SPATIAL_REUSE)
+#if defined(SPATIAL_REUSE)
     vec2i pixelId = owl::getLaunchIndex();
     int fbOfs = pixelId.x + optixLaunchParams.bufferSize.x * pixelId.y;
 #endif
@@ -19,7 +19,39 @@ vec3f estimateDirectLightingReSTIR(SurfaceInteraction& si, LCGRand& rng, Reservo
         vec3f tmpColor = vec3f(0.0);
         sampleLightRIS<TriLight>(si, optixLaunchParams.triLights, optixLaunchParams.numTriLights, res, rng);
 
-#if defined(USE_RESERVOIRS) && defined(SPATIAL_REUSE)
+        // Visibility reuse
+        {
+            vec3f wi = normalize(res.selP - si.p);
+            vec3f wiLocal = normalize(apply_mat(si.to_local, wi));
+
+            ShadowRay ray;
+            ray.origin = si.p + 1e-3f * si.n_geom;
+            ray.direction = wi;
+
+            ShadowRayData srd;
+            owl::traceRay(optixLaunchParams.world, ray, srd);
+
+            if (!(wiLocal.z > 0.f && si.wo_local.z > 0.f && srd.visibility != vec3f(0.f) && dot(-wi, srd.normal) > 0.f)) {
+                // Visibility reuse
+                res.W = 0.0;
+            }
+        }
+
+#if defined(TEMPORAL_REUSE)
+        if (optixLaunchParams.accumId > 0 && optixLaunchParams.passId == 0) {
+            Reservoir prevRes(&rng);
+            prevRes.unpack(optixLaunchParams.resFloatBuffer[fbOfs], optixLaunchParams.resIntBuffer[fbOfs]);
+
+            vec3f wi = normalize(prevRes.selP - si.p);
+            vec3f wiLocal = normalize(apply_mat(si.to_local, wi));
+            vec3f brdf = evaluateBrdf(si.wo_local, wiLocal, si.diffuse, si.alpha);
+            float pHat = length(brdf*optixLaunchParams.triLights[prevRes.selIdx].emit*max(wiLocal.z, 0.0f));
+
+            res.update(prevRes.selIdx, prevRes.selP, pHat * prevRes.W, min(res.samples * 20, prevRes.samples));
+        }
+#endif
+
+#if defined(SPATIAL_REUSE)
         if (optixLaunchParams.passId > 0) {
             Reservoir neighRes(&rng);
             for (int i = 0; i < SPATIAL_SAMPLES; i += 1) {
@@ -51,35 +83,19 @@ vec3f estimateDirectLightingReSTIR(SurfaceInteraction& si, LCGRand& rng, Reservo
                 vec3f brdf = evaluateBrdf(si.wo_local, wiLocal, si.diffuse, si.alpha);
                 float pHat = length(brdf*optixLaunchParams.triLights[neighRes.selIdx].emit*max(wiLocal.z, 0.0f));
 
-                res.update(neighRes.selIdx, neighRes.selP, pHat * neighRes.W * neighRes.samples);
-                res.samples += neighRes.samples;
+                res.update(neighRes.selIdx, neighRes.selP, pHat * neighRes.W, neighRes.samples);
             }
         }
 #endif
-
+        print_pixel_exact(500, 500, "%d\n", res.samples);
+        
+        // Shade pixel
         vec3f wi = normalize(res.selP - si.p);
         vec3f wiLocal = normalize(apply_mat(si.to_local, wi));
-
-        // Shoot shadow ray
-        ShadowRay ray;
-        ray.origin = si.p + 1e-3f * si.n_geom;
-        ray.direction = wi;
-
-        ShadowRayData srd;
-        owl::traceRay(optixLaunchParams.world, ray, srd);
-
-        if (wiLocal.z > 0.f && si.wo_local.z > 0.f && srd.visibility != vec3f(0.f) && dot(-wi, srd.normal) > 0.f) {
-            vec3f brdf = evaluateBrdf(si.wo_local, wiLocal, si.diffuse, si.alpha);
-            float pHat = length(brdf*srd.emit*wiLocal.z);
-
-            res.W = (1.0 / pHat) * (res.wSum / res.samples);
-
-            tmpColor += brdf * srd.emit * wiLocal.z * res.W;
-        } else {
-            // Visibility reuse
-            res.W = 0.0;
-            res.wSum = 0.0;
-        }
+        vec3f brdf = evaluateBrdf(si.wo_local, wiLocal, si.diffuse, si.alpha);
+        float pHat = length(brdf*optixLaunchParams.triLights[res.selIdx].emit*wiLocal.z);
+        res.W = (1.0 / pHat) * (res.wSum / res.samples);
+        tmpColor += brdf * optixLaunchParams.triLights[res.selIdx].emit * wiLocal.z * res.W;
 
         // Make sure there are no negative colors!
         color.x += max(0.0, tmpColor.x);

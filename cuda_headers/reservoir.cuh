@@ -20,11 +20,11 @@ class Reservoir {
         Reservoir(LCGRand *rng) : samples(0), wSum(0.0), selIdx(0), rng(rng) {}
 
         __device__ 
-        void update(int sample, vec3f &p, float w) {
-            wSum += w;
-            samples += 1;
-            if (lcg_randomf(*rng) < w / wSum || wSum < EPS) {
-                selIdx = sample;
+        void update(int idx, vec3f &p, float w, int samples) {
+            wSum += w*samples;
+            this->samples += samples;
+            if (lcg_randomf(*rng) < w / wSum ) {
+                selIdx = idx;
                 selP = p;
             }
         }
