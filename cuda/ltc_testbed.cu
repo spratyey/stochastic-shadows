@@ -41,15 +41,13 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
 
     int binIdx = lcg_randomf(rng)*NUM_BINS;
     
-#ifdef USE_RESERVOIRS
-    Reservoir res(&rng);
-#endif
-
     if (si.hit == false) {
         color = si.diffuse;
     } else {
 #if RENDERER == DEBUG_DIFFUSE
         color = si.diffuse;
+#elif RENDERER == DEBUG_NORMAL
+        color = (si.n_geom + 1) / 2;
 #elif RENDERER == DEBUG_ALPHA
         color = vec3f(si.alpha);
         print_pixel("%f\n", si.alpha);
@@ -93,10 +91,7 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         if (si.isLight) {
             color = si.emit;
         } else {
-            color = estimateDirectLightingReSTIR(si, rng, res);
-#if defined(USE_RESERVOIRS) && (defined(SPATIAL_REUSE) || defined(TEMPORAL_REUSE))
-            res.pack(optixLaunchParams.resFloatBuffer[fbOfs], optixLaunchParams.resIntBuffer[fbOfs]);
-#endif
+            color = estimateDirectLightingReSTIR(si, rng);
         }
 #endif
     }
@@ -113,7 +108,11 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
     optixLaunchParams.binIdxBuffer[fbOfs] = binIdx;
     optixLaunchParams.normalBuffer[fbOfs] = si.n_geom;
     optixLaunchParams.albedoBuffer[fbOfs] = si.diffuse;
-    optixLaunchParams.depthBuffer[fbOfs] = length(si.p - ray.origin);
+    if (si.hit) {
+        optixLaunchParams.depthBuffer[fbOfs] = length(si.p - ray.origin);
+    } else {
+        optixLaunchParams.depthBuffer[fbOfs] = 0.0;
+    }
 #endif
     self.frameBuffer[fbOfs] = owl::make_rgba(vec3f(
         linear_to_srgb(color.x),

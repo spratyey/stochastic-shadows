@@ -24,16 +24,18 @@
 
 // Renderer
 #define DEBUG_DIFFUSE 0
-#define DEBUG_ALPHA 1
-#define DEBUG_SIL 2
-#define LTC_BASE 3
-#define LTC_SAMPLE_TRI 4
-#define LTC_SAMPLE_POLY 5
-#define LTC_MONTE_CARLO 6
-#define DIRECT_LIGHTING 7
-#define DIRECT_LIGHTING_RESTIR 8
+#define DEBUG_NORMAL 1
+#define DEBUG_ALPHA 2
+#define DEBUG_SIL 3
+#define LTC_BASE 4
+#define LTC_SAMPLE_TRI 5
+#define LTC_SAMPLE_POLY 6
+#define LTC_MONTE_CARLO 7
+#define DIRECT_LIGHTING 8
+#define DIRECT_LIGHTING_RESTIR 9
 
 // #define RENDERER DEBUG_DIFFUSE
+// #define RENDERER DEBUG_NORMAL
 // #define RENDERER DEBUG_ALPHA
 // #define RENDERER DEBUG_SIL
 // #define RENDERER LTC_BASE
@@ -43,7 +45,7 @@
 // #define RENDERER DIRECT_LIGHTING
 #define RENDERER DIRECT_LIGHTING_RESTIR
 
-#define SAMPLES 1   // Number of samples per frame
+#define SAMPLES 1000   // Number of samples per frame
 
 #if RENDERER == DIRECT_LIGHTING_RESTIR
 #define USE_RESERVOIRS      // Whether to use WRS for sampling
@@ -56,11 +58,11 @@
 
 // Features
 #if RENDERER == LTC_SAMPLE_POLY || RENDERER == LTC_BASE || (RENDERER == DIRECT_LIGHTING_RESTIR && defined(USE_RESERVOIRS))
-#define SPATIAL_REUSE
+// #define SPATIAL_REUSE
 #endif
 
 #if RENDERER == DIRECT_LIGHTING_RESTIR && !defined(ACCUM)
-#define TEMPORAL_REUSE
+// #define TEMPORAL_REUSE
 #endif
 
 // #define SIL                     // Whether to use integrate over silhouette or over all triangles of polygon

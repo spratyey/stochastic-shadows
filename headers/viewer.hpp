@@ -98,11 +98,4 @@ struct RenderWindow : public owl::viewer::OWLViewer {
 
     // Random controls
     float lerp = 0.5f;
-
-    // Denoiser stuff
-    bool denoiserOn = false;
-    DeviceMemory denoisedBuffer;
-    DeviceMemory denoiserScratch;
-    DeviceMemory denoiserState;
-    OptixDenoiser myDenoiser = nullptr;
 };

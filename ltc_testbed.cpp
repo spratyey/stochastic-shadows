@@ -49,11 +49,6 @@ int main(int argc, char** argv) {
         win.showAndRun();
     } else {
         fs::path savePath(FLAGS_outputPath);
-        if (!fs::exists(savePath)) {
-            LOG("Creating " + savePath.string());
-            fs::create_directory(savePath);
-        }
-
         nlohmann::json stats;
 
         int imgName = 0;    
@@ -65,9 +60,9 @@ int main(int argc, char** argv) {
 
             win.accumId = 0;
 #if defined(ACCUM) || defined(TEMPORAL_REUSE)
-            // progressbar bar(FLAGS_samples);
+            progressbar bar(FLAGS_samples);
             for (int sample = 0; sample < FLAGS_samples; sample++) {
-                // bar.update();
+                bar.update();
                 win.render();
             }
             std::cout << std::endl;
@@ -79,7 +74,7 @@ int main(int argc, char** argv) {
 
             auto milliseconds_taken = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() / 1e6;
 
-            std::string imgFileName = savePath.string() / fs::path("LTC_TestBed_" + std::to_string(imgName) + ".png");
+            std::string imgFileName = savePath.string();
             nlohmann::json currentStats = {
                 {"image_name", imgFileName},
                 {"width", scene.imgWidth},
@@ -92,13 +87,7 @@ int main(int argc, char** argv) {
 
             win.screenShot(imgFileName);
             imgName++;
-        }
-
-        std::ofstream op(savePath.string() / fs::path("stats.json"));
-        op << std::setw(4) << stats << std::endl;
-        for (auto stat : stats) {
-            LOG(stat["image_name"]);
-            LOG(stat["frametime_milliseconds"]);
+            break;
         }
     }
 

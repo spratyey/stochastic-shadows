@@ -22,8 +22,7 @@ OPTIX_CLOSEST_HIT_PROGRAM(triangleMeshCHShadow)()
         srd.area = 0.5f * length(cross(v1 - v2, v3 - v2));
 
         srd.cg = (v1 + v2 + v3) / 3.f;
-    }
-    else {
+    } else {
         srd.visibility = vec3f(0.f);
     }
 

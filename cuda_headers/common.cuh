@@ -58,7 +58,7 @@ struct LaunchParams {
 #if defined(USE_RESERVOIRS) && defined(SPATIAL_REUSE)
  // TODO: Implement sample count
 	float4 *resFloatBuffer;
-	int2 *resIntBuffer;
+	uint2 *resIntBuffer;
 	uint passId;
 #endif
 
